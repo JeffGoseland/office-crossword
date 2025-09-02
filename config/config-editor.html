@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crossword Configuration Editor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .config-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .config-section h3 {
+            margin-top: 0;
+            color: #007acc;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        input[type="number"], input[type="text"], select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .btn {
+            background-color: #007acc;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .btn:hover {
+            background-color: #005a9e;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        
+        .actions {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+        
+        .info {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Crossword Configuration Editor</h1>
+        
+        <div class="info">
+            <strong>Note:</strong> This editor allows you to modify crossword settings. 
+            Changes are automatically saved and will be applied when you return to the crossword.
+        </div>
+        
+        <form id="configForm">
+            <!-- Grid Settings -->
+            <div class="config-section">
+                <h3>Grid Settings</h3>
+                <div class="form-group">
+                    <label for="gridSize">Grid Size:</label>
+                    <select id="gridSize" name="grid.size">
+                        <option value="15">15x15 (Daily)</option>
+                        <option value="21">21x21 (Sunday)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="gridType">Grid Type:</label>
+                    <select id="gridType" name="grid.type">
+                        <option value="daily">Daily</option>
+                        <option value="sunday">Sunday</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Black Squares -->
+            <div class="config-section">
+                <h3>Black Squares</h3>
+                <div class="form-group">
+                    <label for="blackSquarePercentage">Black Square Percentage:</label>
+                    <input type="number" id="blackSquarePercentage" name="blackSquares.percentage" min="15" max="20" step="1">
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="avoidCorners" name="blackSquares.avoidCorners">
+                    <label for="avoidCorners">Avoid placing black squares in corners</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="avoid2x2Blocks" name="blackSquares.avoid2x2Blocks">
+                    <label for="avoid2x2Blocks">Avoid creating 2x2 blocks of black squares</label>
+                </div>
+            </div>
+            
+            <!-- Word Settings -->
+            <div class="config-section">
+                <h3>Word Settings</h3>
+                <div class="form-group">
+                    <label for="minWordLength">Minimum Word Length:</label>
+                    <input type="number" id="minWordLength" name="words.minLength" min="3" max="10">
+                </div>
+                <div class="form-group">
+                    <label for="maxWordLength">Maximum Word Length:</label>
+                    <input type="number" id="maxWordLength" name="words.maxLength" min="5" max="21">
+                </div>
+                <div class="form-group">
+                    <label for="targetWordCount">Target Word Count:</label>
+                    <input type="number" id="targetWordCount" name="words.targetCount" min="20" max="100">
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="balanceAcrossDown" name="words.balanceAcrossDown">
+                    <label for="balanceAcrossDown">Balance across and down entries</label>
+                </div>
+            </div>
+            
+            <!-- Symmetry -->
+            <div class="config-section">
+                <h3>Symmetry</h3>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="symmetryEnabled" name="symmetry.enabled">
+                    <label for="symmetryEnabled">Enable rotational symmetry</label>
+                </div>
+                <div class="form-group">
+                    <label for="symmetryType">Symmetry Type:</label>
+                    <select id="symmetryType" name="symmetry.type">
+                        <option value="rotational">Rotational (180°)</option>
+                        <option value="reflectional">Reflectional</option>
+                        <option value="none">None</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Placement -->
+            <div class="config-section">
+                <h3>Word Placement</h3>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="preferLongerWords" name="placement.preferLongerWords">
+                    <label for="preferLongerWords">Prefer longer words for better grid structure</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="ensureConnectivity" name="placement.ensureConnectivity">
+                    <label for="ensureConnectivity">Ensure grid connectivity (no isolated sections)</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="fillEmptyCells" name="placement.fillEmptyCells">
+                    <label for="fillEmptyCells">Fill empty cells to maintain connectivity</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="preventIsolatedLetters" name="placement.preventIsolatedLetters">
+                    <label for="preventIsolatedLetters">Prevent isolated single letters</label>
+                </div>
+                <div class="form-group">
+                    <label for="gridDensity">Grid Density:</label>
+                    <select id="gridDensity" name="placement.gridDensity">
+                        <option value="low">Low (more black squares, sparser)</option>
+                        <option value="medium">Medium (balanced)</option>
+                        <option value="high">High (denser, more words)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Rendering -->
+            <div class="config-section">
+                <h3>Rendering</h3>
+                <div class="form-group">
+                    <label for="cellSize">Cell Size (pixels):</label>
+                    <input type="number" id="cellSize" name="rendering.cellSize" min="30" max="60" step="5">
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="showNumbers" name="rendering.showNumbers">
+                    <label for="showNumbers">Show word numbers</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="showClues" name="rendering.showClues">
+                    <label for="showClues">Show word clues</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="showGridLabels" name="rendering.showGridLabels">
+                    <label for="showGridLabels">Show grid row/column labels</label>
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="actions">
+                <button type="submit" class="btn">Save Settings</button>
+                <button type="button" class="btn btn-secondary" onclick="loadCurrentConfig()">Load Current</button>
+                <button type="button" class="btn btn-secondary" onclick="resetToDefaults()">Reset to Defaults</button>
+                <a href="../index.html" class="btn btn-secondary">Back to Crossword</a>
+            </div>
+        </form>
+    </div>
+
+    <script src="../scripts/config-loader.js"></script>
+    <script>
+        let configManager = null;
+        
+        // Initialize configuration manager
+        async function initializeConfig() {
+            configManager = new CrosswordConfig();
+            await configManager.loadConfig();
+            populateForm(configManager.config);
+        }
+        
+        // Populate form with configuration values
+        function populateForm(config) {
+            // Grid settings
+            document.getElementById('gridSize').value = config.grid?.size || 15;
+            document.getElementById('gridType').value = config.grid?.type || 'daily';
+            
+            // Black squares
+            document.getElementById('blackSquarePercentage').value = config.blackSquares?.percentage || 18;
+            document.getElementById('avoidCorners').checked = config.blackSquares?.avoidCorners !== false;
+            document.getElementById('avoid2x2Blocks').checked = config.blackSquares?.avoid2x2Blocks !== false;
+            
+            // Word settings
+            document.getElementById('minWordLength').value = config.words?.minLength || 3;
+            document.getElementById('maxWordLength').value = config.words?.maxLength || 15;
+            document.getElementById('targetWordCount').value = config.words?.targetCount || 30;
+            document.getElementById('balanceAcrossDown').checked = config.words?.balanceAcrossDown !== false;
+            
+            // Symmetry
+            document.getElementById('symmetryEnabled').checked = config.symmetry?.enabled !== false;
+            document.getElementById('symmetryType').value = config.symmetry?.type || 'rotational';
+            
+            // Placement
+            document.getElementById('preferLongerWords').checked = config.placement?.preferLongerWords !== false;
+            document.getElementById('ensureConnectivity').checked = config.placement?.ensureConnectivity !== false;
+            document.getElementById('fillEmptyCells').checked = config.placement?.fillEmptyCells !== false;
+            document.getElementById('preventIsolatedLetters').checked = config.placement?.preventIsolatedLetters !== false;
+            document.getElementById('gridDensity').value = config.placement?.gridDensity || 'medium';
+            
+            // Rendering
+            document.getElementById('cellSize').value = config.rendering?.cellSize || 45;
+            document.getElementById('showNumbers').checked = config.rendering?.showNumbers !== false;
+            document.getElementById('showClues').checked = config.rendering?.showClues !== false;
+            document.getElementById('showGridLabels').checked = config.rendering?.showGridLabels !== false;
+        }
+        
+        // Load current configuration
+        function loadCurrentConfig() {
+            if (configManager) {
+                populateForm(configManager.config);
+            }
+        }
+        
+        // Reset to default values
+        function resetToDefaults() {
+            if (confirm('Are you sure you want to reset to default values?')) {
+                configManager.resetToDefaults();
+                populateForm(configManager.config);
+            }
+        }
+        
+        // Handle form submission
+        document.getElementById('configForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const config = {};
+            
+            // Build configuration object from form data
+            for (let [key, value] of formData.entries()) {
+                const keys = key.split('.');
+                let current = config;
+                
+                for (let i = 0; i < keys.length - 1; i++) {
+                    if (!current[keys[i]]) {
+                        current[keys[i]] = {};
+                    }
+                    current = current[keys[i]];
+                }
+                
+                // Convert string values to appropriate types
+                if (value === 'true') value = true;
+                else if (value === 'false') value = false;
+                else if (!isNaN(value) && value !== '') value = parseInt(value);
+                
+                current[keys[keys.length - 1]] = value;
+            }
+            
+            // Update configuration and save to cookies
+            configManager.updateConfig(config);
+            alert('Settings saved successfully!');
+        });
+        
+        // Initialize when page loads
+        window.onload = function() {
+            initializeConfig();
+        };
+    </script>
+</body>
+</html>
