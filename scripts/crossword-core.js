@@ -60,14 +60,17 @@ class CrosswordGenerator {
 
     placeBlackSquares() {
         const maxBlackSquares = Math.floor(this.gridSize * this.gridSize * 
-            (this.config.get('blackSquares.percentage') || 0.17));
+            (this.config.get('blackSquares.percentage') || 0.15)); // Reduced from 0.17
         let blackSquareCount = 0;
         const center = Math.floor(this.gridSize / 2);
 
-        // Place black squares with rotational symmetry
+        // First, place strategic black squares for better word flow
+        this.placeStrategicBlackSquares();
+        
+        // Then fill remaining with random placement, maintaining symmetry
         for (let i = 0; i < center && blackSquareCount < maxBlackSquares; i++) {
             for (let j = 0; j < center && blackSquareCount < maxBlackSquares; j++) {
-                if (Math.random() < 0.3 && blackSquareCount < maxBlackSquares) {
+                if (Math.random() < 0.2 && blackSquareCount < maxBlackSquares) { // Reduced probability
                     const positions = [
                         [i, j], [i, this.gridSize - 1 - j], 
                         [this.gridSize - 1 - i, j], [this.gridSize - 1 - i, this.gridSize - 1 - j]
@@ -84,6 +87,30 @@ class CrosswordGenerator {
                 }
             }
         }
+    }
+
+    placeStrategicBlackSquares() {
+        // Place black squares in corners and edges to create better word flow
+        const strategicPositions = [
+            // Corners
+            [0, 0], [0, this.gridSize - 1], [this.gridSize - 1, 0], [this.gridSize - 1, this.gridSize - 1],
+            
+            // Mid-edges for better symmetry
+            [0, Math.floor(this.gridSize / 2)], [Math.floor(this.gridSize / 2), 0],
+            [this.gridSize - 1, Math.floor(this.gridSize / 2)], [Math.floor(this.gridSize / 2), this.gridSize - 1],
+            
+            // Center area (smaller black square cluster)
+            [Math.floor(this.gridSize / 2) - 1, Math.floor(this.gridSize / 2) - 1],
+            [Math.floor(this.gridSize / 2) - 1, Math.floor(this.gridSize / 2) + 1],
+            [Math.floor(this.gridSize / 2) + 1, Math.floor(this.gridSize / 2) - 1],
+            [Math.floor(this.gridSize / 2) + 1, Math.floor(this.gridSize / 2) + 1]
+        ];
+        
+        strategicPositions.forEach(([row, col]) => {
+            if (this.crossword[row][col] === '' && this.isValidBlackSquarePlacement(row, col)) {
+                this.crossword[row][col] = '#';
+            }
+        });
     }
 
     isValidBlackSquarePlacement(row, col) {
@@ -156,16 +183,24 @@ class CrosswordGenerator {
             }
         }
         
-        // Now place other words strategically
+        // Now place other words strategically, focusing on intersections
         const remainingWords = selectedWords.filter(w => w !== centralWord);
         remainingWords.sort((a, b) => b.length - a.length);
         
+        let attempts = 0;
+        const maxAttempts = 500; // Increase attempts for better placement
+        
         for (const word of remainingWords) {
             if (localPlacedWords.length >= this.config.get('words.targetCount') || 20) break;
+            if (attempts >= maxAttempts) break;
             
-            const placed = this.placeWordWithSymmetry(word);
+            // Try to place word with better intersection logic
+            const placed = this.placeWordWithBetterIntersections(word, localPlacedWords);
             if (placed) {
                 localPlacedWords.push(placed);
+                attempts = 0; // Reset attempts counter on success
+            } else {
+                attempts++;
             }
         }
         
@@ -173,83 +208,162 @@ class CrosswordGenerator {
         return localPlacedWords;
     }
 
-    placeWordWithSymmetry(word) {
-        const attempts = this.config.get('placement.maxAttempts') || 100;
+    placeWordWithBetterIntersections(word, existingWords) {
+        const attempts = this.config.get('placement.maxAttempts') || 200;
         
         for (let attempt = 0; attempt < attempts; attempt++) {
-            const horizontal = Math.random() < 0.5;
-            const row = Math.floor(Math.random() * this.gridSize);
-            const col = Math.floor(Math.random() * this.gridSize);
-            
-            if (horizontal) {
-                const placed = this.tryPlaceHorizontalWithSymmetry(word, row, col);
-                if (placed) return placed;
-            } else {
-                const placed = this.tryPlaceVerticalWithSymmetry(word, row, col);
-                if (placed) return placed;
-            }
+            // Try to place word that intersects with existing words
+            const placed = this.tryPlaceWordWithIntersections(word, existingWords);
+            if (placed) return placed;
         }
         
         return null;
     }
 
-    tryPlaceHorizontalWithSymmetry(word, row, col) {
-        if (col + word.length > this.gridSize) return null;
-        
-        // Check if we can place the word
-        if (!this.canPlaceWordWithSymmetry(word, row, col, true)) return null;
-        
-        // Place the word
-        for (let i = 0; i < word.length; i++) {
-            this.crossword[row][col + i] = word[i];
-        }
-        
-        // Place rotational counterpart
-        const symRow = this.gridSize - 1 - row;
-        const symCol = this.gridSize - 1 - col - word.length + 1;
-        
-        if (symCol >= 0 && symCol + word.length <= this.gridSize) {
-            for (let i = 0; i < word.length; i++) {
-                this.crossword[symRow][symCol + i] = word[i];
+    tryPlaceWordWithIntersections(word, existingWords) {
+        // First try to place word that intersects with existing words
+        for (const existingWord of existingWords) {
+            const intersection = this.findIntersection(word, existingWord);
+            if (intersection) {
+                const placed = this.placeWordAtIntersection(word, intersection);
+                if (placed) return placed;
             }
         }
         
-        return {
-            word: word,
-            row: row,
-            col: col,
-            horizontal: true,
-            number: this.placedWords.length + 1
-        };
+        // If no intersections found, try random placement
+        return this.placeWordWithSymmetry(word);
     }
 
-    tryPlaceVerticalWithSymmetry(word, row, col) {
-        if (row + word.length > this.gridSize) return null;
+    findIntersection(newWord, existingWord) {
+        // Find potential intersection points between two words
+        const intersections = [];
         
-        if (!this.canPlaceWordWithSymmetry(word, row, col, false)) return null;
-        
-        // Place the word
-        for (let i = 0; i < word.length; i++) {
-            this.crossword[row + i][col] = word[i];
-        }
-        
-        // Place rotational counterpart
-        const symRow = this.gridSize - 1 - row - word.length + 1;
-        const symCol = this.gridSize - 1 - col;
-        
-        if (symRow >= 0 && symRow + word.length <= this.gridSize) {
-            for (let i = 0; i < word.length; i++) {
-                this.crossword[symRow + i][symCol] = word[i];
+        if (existingWord.horizontal) {
+            // Existing word is horizontal, try to place new word vertically
+            for (let i = 0; i < existingWord.word.length; i++) {
+                const row = existingWord.row;
+                const col = existingWord.col + i;
+                const letter = existingWord.word[i];
+                
+                // Check if this letter appears in the new word
+                for (let j = 0; j < newWord.length; j++) {
+                    if (newWord[j] === letter) {
+                        // Potential intersection found
+                        const newRow = row - j; // New word starts above
+                        if (newRow >= 0 && newRow + newWord.length <= this.gridSize) {
+                            intersections.push({
+                                row: newRow,
+                                col: col,
+                                horizontal: false,
+                                intersectionPoint: j,
+                                existingLetterIndex: i
+                            });
+                        }
+                        
+                        const newRowBelow = row + (newWord.length - j - 1); // New word starts below
+                        if (newRowBelow >= 0 && newRowBelow + newWord.length <= this.gridSize) {
+                            intersections.push({
+                                row: newRowBelow,
+                                col: col,
+                                horizontal: false,
+                                intersectionPoint: j,
+                                existingLetterIndex: i
+                            });
+                        }
+                    }
+                }
+            }
+        } else {
+            // Existing word is vertical, try to place new word horizontally
+            for (let i = 0; i < existingWord.word.length; i++) {
+                const row = existingWord.row + i;
+                const col = existingWord.col;
+                const letter = existingWord.word[i];
+                
+                // Check if this letter appears in the new word
+                for (let j = 0; j < newWord.length; j++) {
+                    if (newWord[j] === letter) {
+                        // Potential intersection found
+                        const newCol = col - j; // New word starts to the left
+                        if (newCol >= 0 && newCol + newWord.length <= this.gridSize) {
+                            intersections.push({
+                                row: row,
+                                col: newCol,
+                                horizontal: true,
+                                intersectionPoint: j,
+                                existingLetterIndex: i
+                            });
+                        }
+                        
+                        const newColRight = col + (newWord.length - j - 1); // New word starts to the right
+                        if (newColRight >= 0 && newColRight + newWord.length <= this.gridSize) {
+                            intersections.push({
+                                row: row,
+                                col: newColRight,
+                                horizontal: true,
+                                intersectionPoint: j,
+                                existingLetterIndex: i
+                            });
+                        }
+                    }
+                }
             }
         }
         
-        return {
-            word: word,
-            row: row,
-            col: col,
-            horizontal: false,
-            number: this.placedWords.length + 1
-        };
+        // Return a random intersection if any found
+        return intersections.length > 0 ? 
+            intersections[Math.floor(Math.random() * intersections.length)] : null;
+    }
+
+    placeWordAtIntersection(word, intersection) {
+        const { row, col, horizontal, intersectionPoint } = intersection;
+        
+        // Check if we can place the word at this intersection
+        if (horizontal) {
+            if (col + word.length > this.gridSize) return null;
+            
+            // Check if placement is valid
+            for (let i = 0; i < word.length; i++) {
+                const currentCell = this.crossword[row][col + i];
+                if (currentCell === '#') return null;
+                if (currentCell !== '' && currentCell !== word[i]) return null;
+            }
+            
+            // Place the word
+            for (let i = 0; i < word.length; i++) {
+                this.crossword[row][col + i] = word[i];
+            }
+            
+            return {
+                word: word,
+                row: row,
+                col: col,
+                horizontal: true,
+                number: this.placedWords.length + 1
+            };
+        } else {
+            if (row + word.length > this.gridSize) return null;
+            
+            // Check if placement is valid
+            for (let i = 0; i < word.length; i++) {
+                const currentCell = this.crossword[row + i][col];
+                if (currentCell === '#') return null;
+                if (currentCell !== '' && currentCell !== word[i]) return null;
+            }
+            
+            // Place the word
+            for (let i = 0; i < word.length; i++) {
+                this.crossword[row + i][col] = word[i];
+            }
+            
+            return {
+                word: word,
+                row: row,
+                col: col,
+                horizontal: false,
+                number: this.placedWords.length + 1
+            };
+        }
     }
 
     canPlaceWordWithSymmetry(word, row, col, horizontal) {
