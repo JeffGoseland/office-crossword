@@ -218,17 +218,18 @@ h1 {
 
 /* Grid Labels - Integrated into axes */
 .cell.axis-label {
-    background-color: var(--md-primary);
-    border-color: var(--md-primary);
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--md-text-on-primary);
+    background-color: var(--md-surface-variant);
+    border-color: var(--md-grid-border);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--md-text-secondary);
     cursor: default;
     text-align: center;
+    opacity: 0.8;
 }
 
 .cell.axis-label:hover {
-    background-color: var(--md-primary);
+    background-color: var(--md-surface-variant);
     transform: none;
 }
 

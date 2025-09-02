@@ -1,53 +1,39 @@
 {
-  "grid": {
-    "size": 15,
-    "type": "daily",
-    "maxSize": 21,
-    "minSize": 15
-  },
-  "blackSquares": {
-    "percentage": 0.18,
-    "maxPercentage": 0.20,
-    "minPercentage": 0.15,
-    "avoidCorners": true,
-    "avoid2x2Blocks": true
-  },
-  "words": {
-    "minLength": 3,
-    "maxLength": 15,
-    "targetCount": 30,
-    "maxCount": 50,
-    "balanceAcrossDown": true,
-    "avoidObscureWords": true
-  },
-  "symmetry": {
-    "enabled": true,
-    "type": "rotational",
-    "angle": 180
-  },
-  "placement": {
-    "maxAttempts": 200,
-    "preferLongerWords": true,
-    "ensureConnectivity": true,
-    "fillEmptyCells": true,
-    "preventIsolatedLetters": true,
-    "gridDensity": "medium"
-  },
-  "rendering": {
-    "cellSize": 45,
-    "showNumbers": true,
-    "showClues": true,
-    "showGridLabels": true,
-    "clueColumns": 2
-  },
-  "difficulty": {
-    "level": "medium",
-    "allowRepeatedWords": false,
-    "maxThemeEntries": 5,
-    "minThemeEntries": 3
-  },
-  "files": {
-    "wordListPath": "./data/sample.csv",
-    "fallbackWords": ["DESK", "CHAIR", "PHONE", "COMPUTER", "PRINTER", "PAPER", "PEN", "PENCIL"]
-  }
+    "grid": {
+        "size": 15,
+        "type": "daily"
+    },
+    "blackSquares": {
+        "percentage": 0.08,
+        "avoidCorners": true,
+        "avoid2x2Blocks": true
+    },
+    "words": {
+        "minLength": 3,
+        "maxLength": 12,
+        "targetCount": 25,
+        "preferLonger": false,
+        "balanceAcrossDown": true
+    },
+    "symmetry": {
+        "enabled": false,
+        "type": "none"
+    },
+    "placement": {
+        "maxAttempts": 100,
+        "ensureConnectivity": false,
+        "preventIsolatedLetters": false,
+        "density": "high"
+    },
+    "rendering": {
+        "cellSize": 45,
+        "showNumbers": true,
+        "showClues": true,
+        "showGridLabels": true
+    },
+    "difficulty": "easy",
+    "files": {
+        "wordListPath": "data/cross-word-1.csv",
+        "fallbackWords": []
+    }
 }
