@@ -857,7 +857,7 @@ class CrosswordGenerator {
         const { word, row, col, horizontal } = placement;
         
         if (horizontal) {
-            // Add black squares at the ends
+            // Add black squares at the ends (always)
             if (col > 0) {
                 this.addBlackSquare(row, col - 1);
             }
@@ -865,9 +865,9 @@ class CrosswordGenerator {
                 this.addBlackSquare(row, col + word.length);
             }
             
-            // Add black squares above and below (with some randomness)
+            // Add black squares above and below (more aggressively)
             for (let i = 0; i < word.length; i++) {
-                if (Math.random() < 0.3) { // 30% chance
+                if (Math.random() < 0.5) { // 50% chance for better separation
                     if (row > 0) {
                         this.addBlackSquare(row - 1, col + i);
                     }
@@ -877,7 +877,7 @@ class CrosswordGenerator {
                 }
             }
         } else {
-            // Add black squares at the ends
+            // Add black squares at the ends (always)
             if (row > 0) {
                 this.addBlackSquare(row - 1, col);
             }
@@ -885,9 +885,9 @@ class CrosswordGenerator {
                 this.addBlackSquare(row + word.length, col);
             }
             
-            // Add black squares to the left and right (with some randomness)
+            // Add black squares to the left and right (more aggressively)
             for (let i = 0; i < word.length; i++) {
-                if (Math.random() < 0.3) { // 30% chance
+                if (Math.random() < 0.5) { // 50% chance for better separation
                     if (col > 0) {
                         this.addBlackSquare(row + i, col - 1);
                     }
@@ -1488,6 +1488,7 @@ class CrosswordRenderer {
         // Store the grid data in the renderer instance for use by other methods
         this.crossword = grid;
         this.gridSize = size;
+        this.placedWords = words; // Store the placed words for proper numbering
         
         const container = document.getElementById('crossword-container');
         const cluesContainer = document.getElementById('clues-container');
@@ -1620,10 +1621,17 @@ class CrosswordRenderer {
     }
 
     getCellNumber(row, col) {
-        // Return a unique number for this cell based on word starts
-        let number = 1;
+        // Try to find a placed word that starts at this position
+        if (this.placedWords) {
+            for (const word of this.placedWords) {
+                if (word.row === row && word.col === col) {
+                    return word.number || 1;
+                }
+            }
+        }
         
-        // Count word starts before this position
+        // Fallback: calculate sequential number
+        let number = 1;
         for (let r = 0; r <= row; r++) {
             for (let c = 0; c <= col; c++) {
                 if (r === row && c === col) {
