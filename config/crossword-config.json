@@ -1,17 +1,17 @@
 {
     "grid": {
-        "size": 15,
+        "size": 17,
         "type": "daily"
     },
     "blackSquares": {
-        "percentage": 0.08,
+        "percentage": 0.15,
         "avoidCorners": true,
         "avoid2x2Blocks": true
     },
     "words": {
         "minLength": 3,
         "maxLength": 12,
-        "targetCount": 25,
+        "targetCount": 20,
         "preferLonger": false,
         "balanceAcrossDown": true
     },

@@ -123,17 +123,64 @@ class CrosswordConfig {
     }
 }
 
-// Crossword Generator
+/**
+ * Crossword Generator Class - Smart Intersection-First Approach
+ * Analyzes word intersections, builds connection graphs, and creates professional crosswords.
+ */
 class CrosswordGenerator {
     constructor(config) {
         this.config = config;
         this.gridSize = config.get('grid.size') || 15;
-        this.cellSize = config.get('rendering.cellSize') || 45;
         this.words = [];
-        this.crossword = [];
+        this.clues = {};
+        this.crossword = null;
         this.placedWords = [];
+        this.wordGraph = {};
     }
 
+    /**
+     * Main method to generate a crossword puzzle using the words-first approach.
+     * @returns {Promise<Object>} - Generated crossword data
+     */
+    async generateCrossword() {
+        try {
+            console.log('Starting words-first crossword generation...');
+            
+            // Phase 1: Load words and build intersection graph
+            await this.loadWordsFromCSV();
+            const selectedWords = this.selectSmartWordSet();
+            console.log(`Selected ${selectedWords.length} words for crossword`);
+            
+            // Phase 2: Build comprehensive word connection graph
+            this.buildWordConnectionGraph(selectedWords);
+            console.log('Word connection graph built');
+            
+            // Phase 3: Generate crossword grid with strategic placement
+            const success = this.generateCrosswordGrid(selectedWords);
+            if (!success) {
+                throw new Error('Failed to generate valid crossword grid');
+            }
+            console.log('Crossword grid generated successfully');
+            
+            // Phase 4: Add professional black square patterns
+            this.addProfessionalBlackSquares();
+            console.log('Professional black squares added');
+            
+            return {
+                grid: this.crossword,
+                words: this.placedWords,
+                size: this.gridSize
+            };
+        } catch (error) {
+            console.error('Error in generateCrossword:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Loads words and clues from CSV file.
+     * @returns {Promise<void>}
+     */
     async loadWordsFromCSV() {
         try {
             console.log('Loading words from CSV...');
@@ -144,17 +191,13 @@ class CrosswordGenerator {
             }
             
             const csvText = await response.text();
-            console.log(`CSV loaded, length: ${csvText.length} characters`);
-            
             const lines = csvText.split('\n').filter(line => line.trim());
-            console.log(`CSV has ${lines.length} lines`);
             
             if (lines.length < 2) {
                 throw new Error('CSV file is too short or empty');
             }
             
             const startIndex = lines[0].toLowerCase().includes('clue') ? 1 : 0;
-            console.log(`Starting from line ${startIndex + 1} (header: ${lines[0]})`);
             
             this.words = [];
             this.clues = {};
@@ -177,16 +220,8 @@ class CrosswordGenerator {
             }
             
             console.log(`Loaded ${this.words.length} words with clues from CSV`);
-            
-            if (this.words.length === 0) {
-                throw new Error('No valid words loaded from CSV');
-            }
-            
-            // Validate that we have enough words for the target count
-            const targetCount = this.config.get('words.targetCount');
-            if (this.words.length < targetCount) {
-                console.warn(`Warning: Only ${this.words.length} words available, target is ${targetCount}`);
-            }
+            console.log('First 5 words loaded:', this.words.slice(0, 5));
+            console.log('Sample clues:', Object.entries(this.clues).slice(0, 3));
             
         } catch (error) {
             console.error('Error loading words from CSV:', error);
@@ -195,208 +230,716 @@ class CrosswordGenerator {
     }
 
     /**
-     * Selects words for the crossword puzzle, filtering by length and quality.
-     * Ensures only words meeting minimum length requirements are used.
-     * @returns {Array} - Array of selected words for placement
+     * Selects a smart set of words that can create good intersections.
+     * Analyzes word compatibility and prioritizes words with many possible connections.
+     * @returns {Array} - Array of selected words
      */
-    selectWordsForPuzzle() {
-        const targetCount = this.config.get('words.targetCount');
+    selectSmartWordSet() {
         const minLength = this.config.get('words.minLength');
         const maxLength = this.config.get('words.maxLength');
+        const targetCount = Math.min(this.config.get('words.targetCount'), 20); // Cap at 20 for better quality
+        
+        console.log(`Smart word selection: minLength=${minLength}, maxLength=${maxLength}, targetCount=${targetCount}`);
         
         // Filter words by length requirements
         const validWords = this.words.filter(word => 
-            word.length >= minLength && 
-            word.length <= maxLength &&
-            /^[a-z]+$/.test(word) // Only alphabetic words
+            word.length >= minLength && word.length <= maxLength
         );
         
-        console.log(`Found ${validWords.length} valid words (length ${minLength}-${maxLength})`);
-        
-        if (validWords.length === 0) {
-            console.warn('No valid words found, using fallback words');
-            return ['crossword', 'puzzle', 'word', 'game', 'play', 'solve', 'clue', 'answer'];
+        // Group words by length for better intersection potential
+        const wordsByLength = {};
+        for (const word of validWords) {
+            const len = word.length;
+            if (!wordsByLength[len]) wordsByLength[len] = [];
+            wordsByLength[len].push(word);
         }
         
-        // Sort by length (longer words first for better intersections)
-        validWords.sort((a, b) => b.length - a.length);
+        // Select a balanced mix of word lengths
+        const selected = [];
+        const targetLengths = [8, 7, 6, 9, 5, 10, 4, 11, 12, 3]; // Priority order
         
-        // Take the best words up to target count
-        const selected = validWords.slice(0, Math.min(targetCount * 2, validWords.length));
+        for (const length of targetLengths) {
+            if (wordsByLength[length] && selected.length < targetCount) {
+                const wordsOfLength = wordsByLength[length];
+                const shuffle = this.shuffleArray([...wordsOfLength]);
+                const needed = Math.min(targetCount - selected.length, Math.ceil(targetCount / 4));
+                
+                selected.push(...shuffle.slice(0, needed));
+            }
+        }
         
-        console.log(`Selected ${selected.length} words for placement`);
+        // Fill remaining slots with random words
+        const remaining = targetCount - selected.length;
+        if (remaining > 0) {
+            const allValid = validWords.filter(w => !selected.includes(w));
+            const randomWords = this.shuffleArray([...allValid]).slice(0, remaining);
+            selected.push(...randomWords);
+        }
+        
+        console.log(`Selected ${selected.length} smart words with balanced lengths`);
         return selected;
     }
 
-    validateFinalGrid() {
-        console.log('Validating final grid...');
-        
-        // Check if crossword array exists and has correct dimensions
-        if (!this.crossword || !Array.isArray(this.crossword)) {
-            throw new Error('Crossword grid is not properly initialized');
+    /**
+     * Shuffles an array using Fisher-Yates algorithm.
+     * @param {Array} array - Array to shuffle
+     * @returns {Array} - Shuffled array
+     */
+    shuffleArray(array) {
+        const shuffled = [...array];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
+        return shuffled;
+    }
+
+    /**
+     * Analyzes which words can intersect with each other.
+     * Creates a graph of possible word connections.
+     * @param {Array} words - Array of words to analyze
+     * @returns {Object} - Word intersection graph
+     */
+    analyzeWordIntersections(words) {
+        const graph = {};
         
-        if (this.crossword.length !== this.gridSize) {
-            throw new Error(`Grid height mismatch: expected ${this.gridSize}, got ${this.crossword.length}`);
-        }
-        
-        // Check each row
-        for (let i = 0; i < this.gridSize; i++) {
-            if (!this.crossword[i] || !Array.isArray(this.crossword[i])) {
-                throw new Error(`Row ${i} is not properly initialized`);
-            }
+        for (let i = 0; i < words.length; i++) {
+            const word1 = words[i];
+            graph[word1] = [];
             
-            if (this.crossword[i].length !== this.gridSize) {
-                throw new Error(`Row ${i} width mismatch: expected ${this.gridSize}, got ${this.crossword[i].length}`);
-            }
-            
-            // Check each cell
-            for (let j = 0; j < this.gridSize; j++) {
-                const cell = this.crossword[i][j];
-                if (cell !== '' && cell !== '#' && (typeof cell !== 'string' || cell.length !== 1)) {
-                    throw new Error(`Invalid cell at [${i}][${j}]: ${cell}`);
+            for (let j = 0; j < words.length; j++) {
+                if (i === j) continue;
+                
+                const word2 = words[j];
+                const intersections = this.findWordIntersections(word1, word2);
+                
+                if (intersections.length > 0) {
+                    graph[word1].push({
+                        word: word2,
+                        intersections: intersections
+                    });
                 }
             }
         }
         
-        console.log('Grid validation passed');
-        
-        // Validate placed words
-        if (!this.placedWords || !Array.isArray(this.placedWords)) {
-            throw new Error('Placed words array is not properly initialized');
-        }
-        
-        console.log(`Validation complete: ${this.placedWords.length} words placed`);
+        return graph;
     }
 
-    initializeGrid() {
-        console.log(`Initializing ${this.gridSize}x${this.gridSize} grid...`);
+    /**
+     * Finds all possible intersections between two words.
+     * @param {string} word1 - First word
+     * @param {string} word2 - Second word
+     * @returns {Array} - Array of intersection points
+     */
+    findWordIntersections(word1, word2) {
+        const intersections = [];
         
-        if (!this.gridSize || this.gridSize <= 0) {
-            throw new Error(`Invalid grid size: ${this.gridSize}`);
+        for (let i = 0; i < word1.length; i++) {
+            for (let j = 0; j < word2.length; j++) {
+                if (word1[i] === word2[j]) {
+                    intersections.push({
+                        word1Index: i,
+                        word2Index: j,
+                        letter: word1[i]
+                    });
+                }
+            }
         }
         
+        return intersections;
+    }
+
+    /**
+     * Designs the grid layout based on selected words and their intersections.
+     * @param {Array} words - Selected words
+     * @param {Object} wordGraph - Word intersection graph
+     * @returns {Object} - Grid layout design
+     */
+    designGridLayout(words, wordGraph) {
+        console.log('=== DESIGNING GRID LAYOUT ===');
+        console.log('Words to place:', words);
+        console.log('Word graph:', wordGraph);
+        
+        // Start with a central word
+        const centralWord = words.find(w => w.length >= 5) || words[0];
+        const center = Math.floor(this.gridSize / 2);
+        
+        console.log('Central word:', centralWord, 'at center:', center);
+        
+        const layout = {
+            centralWord: centralWord,
+            centerRow: center,
+            centerCol: Math.floor(center - centralWord.length / 2),
+            wordPositions: [],
+            blackSquares: []
+        };
+        
+        console.log('Initial layout:', layout);
+        
+        // Place central word horizontally
+        layout.wordPositions.push({
+            word: centralWord,
+            row: center,
+            col: layout.centerCol,
+            horizontal: true,
+            number: 1
+        });
+        
+        console.log('After placing central word:', layout.wordPositions);
+        
+        // Design black squares around the central word
+        this.designBlackSquaresAroundWord(layout, centralWord, center, layout.centerCol, true);
+        
+        // Plan placement of other words
+        this.planWordPlacements(layout, words, wordGraph);
+        
+        console.log('Final layout:', layout);
+        console.log('Total word positions:', layout.wordPositions.length);
+        console.log('Total black squares:', layout.blackSquares.length);
+        
+        return layout;
+    }
+
+    /**
+     * Designs black squares around a placed word to create proper boundaries.
+     * @param {Object} layout - Grid layout object
+     * @param {string} word - Word to design around
+     * @param {number} row - Word row position
+     * @param {number} col - Word column position
+     * @param {boolean} horizontal - Whether word is horizontal
+     */
+    designBlackSquaresAroundWord(layout, word, row, col, horizontal) {
+        if (horizontal) {
+            // Only add black squares at word boundaries (start/end)
+            if (col > 0) {
+                layout.blackSquares.push([row, col - 1]);
+            }
+            if (col + word.length < this.gridSize) {
+                layout.blackSquares.push([row, col + word.length]);
+            }
+            
+            // Occasionally add a black square above or below (much less frequently)
+            if (Math.random() > 0.9) { // Reduced from 0.7 to 0.9
+                const randomCol = col + Math.floor(Math.random() * word.length);
+                if (row > 0) {
+                    layout.blackSquares.push([row - 1, randomCol]);
+                }
+                if (row < this.gridSize - 1) {
+                    layout.blackSquares.push([row + 1, randomCol]);
+                }
+            }
+        } else {
+            // Vertical word - similar conservative approach
+            if (row > 0) {
+                layout.blackSquares.push([row - 1, col]);
+            }
+            if (row + word.length < this.gridSize) {
+                layout.blackSquares.push([row + word.length, col]);
+            }
+            
+            // Occasionally add a black square to the left or right
+            if (Math.random() > 0.9) { // Reduced from 0.7 to 0.9
+                const randomRow = row + Math.floor(Math.random() * word.length);
+                if (col > 0) {
+                    layout.blackSquares.push([randomRow, col - 1]);
+                }
+                if (col < this.gridSize - 1) {
+                    layout.blackSquares.push([randomRow, col + 1]);
+                }
+            }
+        }
+    }
+
+    /**
+     * Plans the placement of remaining words based on intersections.
+     * @param {Object} layout - Grid layout object
+     * @param {Array} words - Words to place
+     * @param {Object} wordGraph - Word intersection graph
+     */
+    planWordPlacements(layout, words, wordGraph) {
+        const remainingWords = words.filter(w => w !== layout.centralWord);
+        
+        for (const word of remainingWords) {
+            // Find best intersection with already placed words
+            const bestPlacement = this.findBestWordPlacement(word, layout.wordPositions, wordGraph);
+            
+            if (bestPlacement) {
+                layout.wordPositions.push(bestPlacement);
+                this.designBlackSquaresAroundWord(
+                    layout, 
+                    word, 
+                    bestPlacement.row, 
+                    bestPlacement.col, 
+                    bestPlacement.horizontal
+                );
+            }
+        }
+    }
+
+    /**
+     * Finds the best placement for a word based on intersections.
+     * @param {string} word - Word to place
+     * @param {Array} placedWords - Already placed words
+     * @param {Object} wordGraph - Word intersection graph
+     * @returns {Object|null} - Best placement or null if none found
+     */
+    findBestWordPlacement(word, placedWords, wordGraph) {
+        let bestPlacement = null;
+        let bestScore = -1;
+        
+        for (const placedWord of placedWords) {
+            const intersections = this.findWordIntersections(word, placedWord.word);
+            
+            for (const intersection of intersections) {
+                const placement = this.calculateWordPlacement(word, placedWord, intersection);
+                
+                if (placement && this.isValidPlacement(placement)) {
+                    const score = this.calculatePlacementScore(placement);
+                    
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestPlacement = placement;
+                    }
+                }
+            }
+        }
+        
+        if (bestPlacement) {
+            bestPlacement.number = placedWords.length + 1;
+        }
+        
+        return bestPlacement;
+    }
+
+    /**
+     * Calculates where a word should be placed based on intersection.
+     * @param {string} word - Word to place
+     * @param {Object} existingWord - Existing word to intersect with
+     * @param {Object} intersection - Intersection data
+     * @returns {Object|null} - Calculated placement or null if invalid
+     */
+    calculateWordPlacement(word, existingWord, intersection) {
+        console.log(`Calculating placement for "${word}" intersecting with "${existingWord.word}" at intersection:`, intersection);
+        
+        if (existingWord.horizontal) {
+            // Place new word vertically
+            const newRow = existingWord.row - intersection.word2Index;
+            const newCol = existingWord.col + intersection.word1Index;
+            
+            console.log(`  Existing word horizontal at [${existingWord.row}, ${existingWord.col}]`);
+            console.log(`  Intersection: word1Index=${intersection.word1Index}, word2Index=${intersection.word2Index}`);
+            console.log(`  Calculated position: [${newRow}, ${newCol}]`);
+            
+            if (newRow >= 0 && newRow + word.length <= this.gridSize) {
+                const placement = {
+                    word: word,
+                    row: newRow,
+                    col: newCol,
+                    horizontal: false
+                };
+                console.log(`  Valid placement found:`, placement);
+                return placement;
+            } else {
+                console.log(`  Invalid placement: newRow=${newRow}, newCol=${newCol}, word.length=${word.length}, gridSize=${this.gridSize}`);
+            }
+        } else {
+            // Place new word horizontally
+            const newRow = existingWord.row + intersection.word1Index;
+            const newCol = existingWord.col - intersection.word2Index;
+            
+            console.log(`  Existing word vertical at [${existingWord.row}, ${existingWord.col}]`);
+            console.log(`  Intersection: word1Index=${intersection.word1Index}, word2Index=${intersection.word2Index}`);
+            console.log(`  Calculated position: [${newRow}, ${newCol}]`);
+            
+            if (newCol >= 0 && newCol + word.length <= this.gridSize) {
+                const placement = {
+                    word: word,
+                    row: newRow,
+                    col: newCol,
+                    horizontal: true
+                };
+                console.log(`  Valid placement found:`, placement);
+                return placement;
+            } else {
+                console.log(`  Invalid placement: newRow=${newRow}, newCol=${newCol}, word.length=${word.length}, gridSize=${this.gridSize}`);
+            }
+        }
+        
+        console.log(`  No valid placement found`);
+        return null;
+    }
+
+    /**
+     * Checks if a word placement is valid.
+     * @param {Object} placement - Word placement to check
+     * @param {Array} placedWords - Already placed words
+     * @returns {boolean} - True if placement is valid
+     */
+    isValidPlacement(placement) {
+        // Check bounds
+        if (placement.row < 0 || placement.col < 0) return false;
+        if (placement.horizontal) {
+            if (placement.col + placement.word.length > this.gridSize) return false;
+        } else {
+            if (placement.row + placement.word.length > this.gridSize) return false;
+        }
+        
+        // Check for conflicts with existing letters in the grid
+        if (this.wouldOverwriteLetters(placement)) {
+            console.log(`Placement would overwrite existing letters:`, placement);
+            return false;
+        }
+        
+        // Check for conflicts with other placed words
+        for (const placedWord of this.placedWords) {
+            if (this.wordsOverlap(placement, placedWord)) {
+                console.log(`Placement conflicts with existing word:`, placedWord);
+                return false;
+            }
+        }
+        
+        // Check for minimum spacing between words
+        if (!this.hasMinimumSpacing(placement)) {
+            console.log(`Placement does not have minimum spacing:`, placement);
+            return false;
+        }
+        
+        return true;
+    }
+
+    /**
+     * Checks if a word placement would overwrite existing letters in the grid.
+     * @param {Object} placement - Word placement to check
+     * @returns {boolean} - True if it would overwrite letters
+     */
+    wouldOverwriteLetters(placement) {
+        const { word, row, col, horizontal } = placement;
+        
+        if (horizontal) {
+            for (let i = 0; i < word.length; i++) {
+                const targetRow = row;
+                const targetCol = col + i;
+                
+                // Check if cell already contains a letter (not empty and not black square)
+                if (this.crossword[targetRow][targetCol] !== '' && 
+                    this.crossword[targetRow][targetCol] !== '#') {
+                    console.log(`Would overwrite letter "${this.crossword[targetRow][targetCol]}" at [${targetRow}, ${targetCol}]`);
+                    return true;
+                }
+            }
+        } else {
+            for (let i = 0; i < word.length; i++) {
+                const targetRow = row + i;
+                const targetCol = col;
+                
+                // Check if cell already contains a letter (not empty and not black square)
+                if (this.crossword[targetRow][targetCol] !== '' && 
+                    this.crossword[targetRow][targetCol] !== '#') {
+                    console.log(`Would overwrite letter "${this.crossword[targetRow][targetCol]}" at [${targetRow}, ${targetCol}]`);
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Checks if two word placements overlap.
+     * @param {Object} placement1 - First word placement
+     * @param {Object} placement2 - Second word placement
+     * @returns {boolean} - True if words overlap
+     */
+    wordsOverlap(placement1, placement2) {
+        // Check if words are in the same direction
+        if (placement1.horizontal === placement2.horizontal) {
+            if (placement1.row === placement2.row && placement1.horizontal) {
+                // Both horizontal, check column overlap
+                return !(placement1.col + placement1.word.length <= placement2.col ||
+                        placement2.col + placement2.word.length <= placement1.col);
+            } else if (placement1.col === placement2.col && !placement1.horizontal) {
+                // Both vertical, check row overlap
+                return !(placement1.row + placement1.word.length <= placement2.row ||
+                        placement2.row + placement2.word.length <= placement1.row);
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Checks if a word placement has minimum spacing from other words.
+     * @param {Object} placement - Word placement to check
+     * @returns {boolean} - True if minimum spacing is maintained
+     */
+    hasMinimumSpacing(placement) {
+        const { word, row, col, horizontal } = placement;
+        
+        // Check spacing from other placed words
+        for (const placedWord of this.placedWords) {
+            if (placement === placedWord) continue;
+            
+            if (horizontal) {
+                // Check if this word is too close to a horizontal word
+                if (placedWord.horizontal && Math.abs(row - placedWord.row) <= 1) {
+                    // Check for minimum column separation
+                    const thisStart = col;
+                    const thisEnd = col + word.length - 1;
+                    const otherStart = placedWord.col;
+                    const otherEnd = placedWord.col + placedWord.word.length - 1;
+                    
+                    // Ensure at least 1 cell separation
+                    if (!(thisEnd < otherStart - 1 || thisStart > otherEnd + 1)) {
+                        return false;
+                    }
+                }
+            } else {
+                // Check if this word is too close to a vertical word
+                if (!placedWord.horizontal && Math.abs(col - placedWord.col) <= 1) {
+                    // Check for minimum row separation
+                    const thisStart = row;
+                    const thisEnd = row + word.length - 1;
+                    const otherStart = placedWord.row;
+                    const otherEnd = placedWord.row + placedWord.word.length - 1;
+                    
+                    // Ensure at least 1 cell separation
+                    if (!(thisEnd < otherStart - 1 || thisStart > otherEnd + 1)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        
+        return true;
+    }
+
+    /**
+     * Calculates a score for a word placement.
+     * @param {Object} placement - Word placement to score
+     * @param {Array} placedWords - Already placed words
+     * @returns {number} - Placement score
+     */
+    calculatePlacementScore(placement) {
+        let score = 0;
+        
+        // Prefer longer words
+        score += placement.word.length * 2;
+        
+        // Prefer words that create more intersections
+        for (const placedWord of this.placedWords) {
+            if (this.wordsOverlap(placement, placedWord)) {
+                score += 10;
+            }
+        }
+        
+        // Prefer central placement
+        const center = Math.floor(this.gridSize / 2);
+        const distanceFromCenter = Math.abs(placement.row - center) + Math.abs(placement.col - center);
+        score += (this.gridSize - distanceFromCenter);
+        
+        return score;
+    }
+
+    /**
+     * Places words and black squares according to the designed layout.
+     * @param {Array} words - Words to place
+     * @param {Object} layout - Grid layout design
+     */
+    placeWordsAndBlackSquares(words, layout) {
+        // Initialize empty grid
         this.crossword = Array(this.gridSize).fill().map(() => Array(this.gridSize).fill(''));
         this.placedWords = [];
         
-        // Validate grid initialization
-        if (!this.crossword || this.crossword.length !== this.gridSize) {
-            throw new Error('Grid initialization failed');
-        }
+        console.log('=== DEBUGGING WORD PLACEMENT ===');
+        console.log('Layout object:', layout);
+        console.log('Word positions to place:', layout.wordPositions);
+        console.log('Black squares to place:', layout.blackSquares);
         
-        for (let i = 0; i < this.gridSize; i++) {
-            if (!this.crossword[i] || this.crossword[i].length !== this.gridSize) {
-                throw new Error(`Row ${i} initialization failed`);
+        // Place black squares first
+        for (const [row, col] of layout.blackSquares) {
+            if (row >= 0 && row < this.gridSize && col >= 0 && col < this.gridSize) {
+                this.crossword[row][col] = '#';
             }
         }
         
-        console.log('Grid initialization complete');
+        // Place words
+        console.log(`Attempting to place ${layout.wordPositions.length} words...`);
+        for (const wordPlacement of layout.wordPositions) {
+            console.log('Placing word:', wordPlacement);
+            this.placeWord(wordPlacement);
+            this.placedWords.push(wordPlacement);
+        }
+        
+        console.log('Grid after word placement:');
+        console.log(this.crossword.map(row => row.join('')).join('\n'));
+        
+        // Fill remaining spaces with additional black squares if needed
+        this.fillRemainingBlackSquares();
     }
 
     /**
-     * Places black squares in the crossword grid to create word separations.
-     * Uses a strategic approach to create better word spaces.
+     * Places a single word in the grid.
+     * @param {Object} placement - Word placement data
      */
-    placeBlackSquares() {
-        console.log('Starting black square placement...');
+    placeWord(placement) {
+        const { word, row, col, horizontal } = placement;
         
-        // Validate grid exists before proceeding
-        if (!this.crossword || !Array.isArray(this.crossword)) {
-            throw new Error('Grid not initialized for black square placement');
+        console.log(`=== PLACING WORD ===`);
+        console.log(`Word: "${word}"`);
+        console.log(`Position: [${row}, ${col}]`);
+        console.log(`Direction: ${horizontal ? 'horizontal' : 'vertical'}`);
+        console.log(`Word length: ${word.length}`);
+        
+        // Validate placement coordinates
+        if (row < 0 || row >= this.gridSize || col < 0 || col >= this.gridSize) {
+            console.error(`Invalid coordinates: [${row}, ${col}] for grid size ${this.gridSize}`);
+            return;
         }
         
-        const maxBlackSquares = Math.floor(this.gridSize * this.gridSize * this.config.get('blackSquares.percentage'));
-        let blackSquareCount = 0;
-        
-        console.log(`Target black squares: ${maxBlackSquares}, Grid size: ${this.gridSize}`);
-        
-        // Place strategic black squares first (corners and edges)
-        this.placeStrategicBlackSquares();
-        
-        // Place black squares in a more strategic pattern for better word separation
-        const strategicPattern = this.createStrategicPattern();
-        
-        for (const [row, col] of strategicPattern) {
-            if (blackSquareCount >= maxBlackSquares) break;
+        if (horizontal) {
+            if (col + word.length > this.gridSize) {
+                console.error(`Word "${word}" too long for horizontal placement at col ${col}`);
+                return;
+            }
             
-            if (this.crossword[row][col] === '' && this.canPlaceBlackSquare(row, col)) {
-                this.crossword[row][col] = '#';
-                blackSquareCount++;
+            console.log(`Placing horizontally from col ${col} to ${col + word.length - 1}`);
+            for (let i = 0; i < word.length; i++) {
+                const targetRow = row;
+                const targetCol = col + i;
+                const letter = word[i];
+                
+                console.log(`  Setting [${targetRow}, ${targetCol}] = "${letter}" (letter ${i + 1} of "${word}")`);
+                
+                // Check if cell is already occupied
+                if (this.crossword[targetRow][targetCol] !== '') {
+                    console.warn(`  WARNING: Cell [${targetRow}, ${targetCol}] already contains "${this.crossword[targetRow][targetCol]}"`);
+                }
+                
+                this.crossword[targetRow][targetCol] = letter;
+            }
+        } else {
+            if (row + word.length > this.gridSize) {
+                console.error(`Word "${word}" too long for vertical placement at row ${row}`);
+                return;
+            }
+            
+            console.log(`Placing vertically from row ${row} to ${row + word.length - 1}`);
+            for (let i = 0; i < word.length; i++) {
+                const targetRow = row + i;
+                const targetCol = col;
+                const letter = word[i];
+                
+                console.log(`  Setting [${targetRow}, ${targetCol}] = "${letter}" (letter ${i + 1} of "${word}")`);
+                
+                // Check if cell is already occupied
+                if (this.crossword[targetRow][targetCol] !== '') {
+                    console.warn(`  WARNING: Cell [${targetRow}, ${targetCol}] already contains "${this.crossword[targetRow][targetCol]}"`);
+                }
+                
+                this.crossword[targetRow][targetCol] = letter;
             }
         }
         
-        // Fill remaining with minimal random placement
-        const remainingAttempts = Math.max(10, maxBlackSquares - blackSquareCount);
+        // Add black squares around the word for proper separation
+        this.addWordBoundaries(placement);
         
-        for (let attempt = 0; attempt < remainingAttempts && blackSquareCount < maxBlackSquares; attempt++) {
-            const row = Math.floor(Math.random() * this.gridSize);
-            const col = Math.floor(Math.random() * this.gridSize);
-            
-            if (this.crossword[row][col] === '' && this.canPlaceBlackSquare(row, col)) {
-                this.crossword[row][col] = '#';
-                blackSquareCount++;
-            }
-        }
-        
-        console.log(`Black squares placed: ${blackSquareCount}`);
+        console.log(`Word "${word}" placed successfully`);
+        console.log(`Grid state after placement:`);
+        this.logGrid();
+        console.log(`=== END PLACING WORD ===`);
     }
 
     /**
-     * Creates a strategic pattern for black square placement that creates better word spaces.
-     * @returns {Array} - Array of [row, col] positions for strategic black squares
+     * Adds black squares around a word to ensure proper separation from other words.
+     * @param {Object} placement - Word placement object
      */
-    createStrategicPattern() {
-        const pattern = [];
+    addWordBoundaries(placement) {
+        const { word, row, col, horizontal } = placement;
         
-        // Create a more balanced pattern that doesn't block too many words
-        for (let i = 2; i < this.gridSize - 2; i += 3) {
-            for (let j = 2; j < this.gridSize - 2; j += 3) {
-                // Skip some positions to avoid over-blocking
-                if (Math.random() > 0.4) {
-                    pattern.push([i, j]);
+        if (horizontal) {
+            // Add black squares at the ends
+            if (col > 0) {
+                this.addBlackSquare(row, col - 1);
+            }
+            if (col + word.length < this.gridSize) {
+                this.addBlackSquare(row, col + word.length);
+            }
+            
+            // Add black squares above and below (with some randomness)
+            for (let i = 0; i < word.length; i++) {
+                if (Math.random() < 0.3) { // 30% chance
+                    if (row > 0) {
+                        this.addBlackSquare(row - 1, col + i);
+                    }
+                    if (row + 1 < this.gridSize) {
+                        this.addBlackSquare(row + 1, col + i);
+                    }
+                }
+            }
+        } else {
+            // Add black squares at the ends
+            if (row > 0) {
+                this.addBlackSquare(row - 1, col);
+            }
+            if (row + word.length < this.gridSize) {
+                this.addBlackSquare(row + word.length, col);
+            }
+            
+            // Add black squares to the left and right (with some randomness)
+            for (let i = 0; i < word.length; i++) {
+                if (Math.random() < 0.3) { // 30% chance
+                    if (col > 0) {
+                        this.addBlackSquare(row + i, col - 1);
+                    }
+                    if (col + 1 < this.gridSize) {
+                        this.addBlackSquare(row + i, col + 1);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Fills remaining spaces with black squares to complete the grid.
+     * Only fills truly empty spaces, never overwrites letters.
+     */
+    fillRemainingBlackSquares() {
+        const targetBlackSquares = Math.floor(this.gridSize * this.gridSize * this.config.get('blackSquares.percentage'));
+        let currentBlackSquares = 0;
+        
+        // Count existing black squares
+        for (let row = 0; row < this.gridSize; row++) {
+            for (let col = 0; col < this.gridSize; col++) {
+                if (this.crossword[row][col] === '#') {
+                    currentBlackSquares++;
                 }
             }
         }
         
-        // Add some edge separators for better word boundaries
-        for (let i = 1; i < this.gridSize - 1; i += 4) {
-            if (Math.random() > 0.5) {
-                pattern.push([0, i]); // Top edge
-                pattern.push([this.gridSize - 1, i]); // Bottom edge
-            }
-        }
+        // Only add black squares if we're under the target AND there are empty spaces
+        let attempts = 0;
+        const maxAttempts = 200;
         
-        for (let i = 1; i < this.gridSize - 1; i += 4) {
-            if (Math.random() > 0.5) {
-                pattern.push([i, 0]); // Left edge
-                pattern.push([i, this.gridSize - 1]); // Right edge
-            }
-        }
-        
-        return pattern;
-    }
-
-    /**
-     * Places strategic black squares at corners and edges for better grid structure.
-     */
-    placeStrategicBlackSquares() {
-        const strategicPositions = [
-            [0, 0], [0, this.gridSize - 1], [this.gridSize - 1, 0], [this.gridSize - 1, this.gridSize - 1],
-            [0, Math.floor(this.gridSize / 2)], [Math.floor(this.gridSize / 2), 0],
-            [this.gridSize - 1, Math.floor(this.gridSize / 2)], [Math.floor(this.gridSize / 2), this.gridSize - 1]
-        ];
-        
-        strategicPositions.forEach(([row, col]) => {
-            if (row >= 0 && row < this.gridSize && col >= 0 && col < this.gridSize && 
-                this.crossword[row] && this.crossword[row][col] === '') {
+        while (currentBlackSquares < targetBlackSquares && attempts < maxAttempts) {
+            const row = Math.floor(Math.random() * this.gridSize);
+            const col = Math.floor(Math.random() * this.gridSize);
+            
+            // CRITICAL FIX: Only place black squares in truly empty spaces
+            // Never overwrite letters that are already there
+            if (this.crossword[row][col] === '' && this.canPlaceBlackSquare(row, col)) {
                 this.crossword[row][col] = '#';
+                currentBlackSquares++;
+                console.log(`Added black square at [${row}, ${col}]`);
             }
-        });
+            
+            attempts++;
+        }
+        
+        console.log(`Final black square count: ${currentBlackSquares}/${targetBlackSquares}`);
     }
 
     /**
      * Checks if a black square can be placed at the given position.
-     * Simplified validation without strict connectivity requirements.
      * @param {number} row - Row position
      * @param {number} col - Column position
      * @returns {boolean} - True if placement is allowed
@@ -407,17 +950,25 @@ class CrosswordGenerator {
             return false;
         }
         
-        // Check if it would create a 2x2 block of black squares
+        // Check if it would create a 2x2 block
         if (this.wouldCreate2x2Block(row, col)) {
             return false;
         }
         
-        // Check if it would isolate a single letter
-        if (this.wouldIsolateSingleLetter(row, col)) {
-            return false;
-        }
-        
         return true;
+    }
+
+    /**
+     * Safely adds a black square at the specified position if possible.
+     * @param {number} row - Row position
+     * @param {number} col - Column position
+     */
+    addBlackSquare(row, col) {
+        if (row >= 0 && row < this.gridSize && col >= 0 && col < this.gridSize) {
+            if (this.crossword[row][col] === '' && this.canPlaceBlackSquare(row, col)) {
+                this.crossword[row][col] = '#';
+            }
+        }
     }
 
     /**
@@ -427,7 +978,6 @@ class CrosswordGenerator {
      * @returns {boolean} - True if it would create a 2x2 block
      */
     wouldCreate2x2Block(row, col) {
-        // Check all possible 2x2 blocks that include this position
         for (let r = Math.max(0, row - 1); r <= Math.min(this.gridSize - 2, row); r++) {
             for (let c = Math.max(0, col - 1); c <= Math.min(this.gridSize - 2, col); c++) {
                 let blackCount = 0;
@@ -438,7 +988,7 @@ class CrosswordGenerator {
                         }
                     }
                 }
-                if (blackCount >= 3) { // Would create a 2x2 block
+                if (blackCount >= 3) {
                     return true;
                 }
             }
@@ -447,516 +997,475 @@ class CrosswordGenerator {
     }
 
     /**
-     * Checks if placing a black square would isolate a single letter.
-     * @param {number} row - Row position
-     * @param {number} col - Column position
-     * @returns {boolean} - True if it would isolate a single letter
+     * Builds a comprehensive word connection graph showing all possible intersections.
+     * @param {Array} words - Array of words to analyze
      */
-    wouldIsolateSingleLetter(row, col) {
-        // This is a simplified check - we'll allow more flexibility
-        // since we disabled strict connectivity requirements
-        return false;
-    }
-
-    placeWordsWithSymmetry() {
-        console.log('Starting word placement...');
+    buildWordConnectionGraph(words) {
+        this.wordGraph = {};
         
-        // Validate grid exists before proceeding
-        if (!this.crossword || !Array.isArray(this.crossword)) {
-            throw new Error('Grid not initialized for word placement');
+        for (let i = 0; i < words.length; i++) {
+            const word1 = words[i];
+            this.wordGraph[word1] = [];
+            
+            for (let j = 0; j < words.length; j++) {
+                if (i === j) continue;
+                
+                const word2 = words[j];
+                const intersections = this.findWordIntersections(word1, word2);
+                
+                if (intersections.length > 0) {
+                    this.wordGraph[word1].push({
+                        word: word2,
+                        intersections: intersections,
+                        score: intersections.length * 2 + Math.min(word1.length, word2.length)
+                    });
+                }
+            }
+            
+            // Sort connections by score (best intersections first)
+            this.wordGraph[word1].sort((a, b) => b.score - a.score);
         }
         
-        const selectedWords = this.selectWordsForPuzzle();
-        const localPlacedWords = [];
+        console.log('Word connection graph built with', Object.keys(this.wordGraph).length, 'words');
+    }
+
+    /**
+     * Generates the crossword grid using strategic word placement.
+     * @param {Array} words - Words to place in the grid
+     * @returns {boolean} - True if successful, false otherwise
+     */
+    generateCrosswordGrid(words) {
+        console.log('=== GENERATING CROSSWORD GRID ===');
+        console.log('Grid size:', this.gridSize);
+        console.log('Words to place:', words);
         
-        console.log(`Selected ${selectedWords.length} words for placement`);
+        // Initialize empty grid
+        this.crossword = Array(this.gridSize).fill().map(() => Array(this.gridSize).fill(''));
+        this.placedWords = [];
+        
+        console.log('Grid initialized, size:', this.crossword.length, 'x', this.crossword[0].length);
         
         // Start with a central word
-        const centralWord = selectedWords.find(w => w.length >= 5) || selectedWords[0];
-        if (centralWord) {
-            const center = Math.floor(this.gridSize / 2);
-            const wordLength = centralWord.length;
-            const startCol = center - Math.floor(wordLength / 2);
-            
-            if (startCol >= 0 && startCol + wordLength <= this.gridSize) {
-                console.log(`Placing central word: "${centralWord}" at center ${center}, startCol ${startCol}`);
-                
-                // Validate that the center row exists
-                if (!this.crossword[center]) {
-                    throw new Error(`Center row ${center} does not exist in crossword array`);
-                }
-                
-                for (let i = 0; i < centralWord.length; i++) {
-                    const col = startCol + i;
-                    if (col < 0 || col >= this.gridSize) {
-                        throw new Error(`Column ${col} is out of bounds for word placement`);
-                    }
-                    this.crossword[center][col] = centralWord[i];
-                }
-                
-                localPlacedWords.push({
-                    word: centralWord,
-                    row: center,
-                    col: startCol,
-                    horizontal: true,
-                    number: 1
-                });
-                
-                console.log(`Central word placed successfully`);
-            }
+        const center = Math.floor(this.gridSize / 2);
+        const centralWord = words.find(w => w.length >= 6) || words[0];
+        
+        console.log('Center position:', center);
+        console.log('Central word selected:', centralWord);
+        
+        if (!centralWord) {
+            console.error('No suitable central word found');
+            return false;
         }
         
-        // Now place words that can intersect with existing words
-        const remainingWords = selectedWords.filter(w => w !== centralWord);
-        remainingWords.sort((a, b) => b.length - a.length);
-        
-        let placedCount = 0;
-        const maxWords = Math.min(this.config.get('words.targetCount'), 20);
-        
-        for (const word of remainingWords) {
-            if (placedCount >= maxWords) break;
-            
-            // Try to place word with intersections first
-            const placed = this.tryPlaceWordWithIntersections(word, localPlacedWords);
-            if (placed) {
-                localPlacedWords.push(placed);
-                placedCount++;
-                console.log(`Placed word "${word}" with intersection`);
-                continue;
-            }
-            
-            // If no intersection possible, try placing in empty space
-            const placedInSpace = this.tryPlaceWordInEmptySpace(word, localPlacedWords);
-            if (placedInSpace) {
-                localPlacedWords.push(placedInSpace);
-                placedCount++;
-                console.log(`Placed word "${word}" in empty space`);
-            }
-        }
-        
-        this.placedWords = localPlacedWords;
-        console.log(`Total words placed: ${localPlacedWords.length}`);
-        return localPlacedWords;
-    }
-
-    placeWordWithBetterIntersections(word, existingWords) {
-        const attempts = this.config.get('placement.maxAttempts') || 200;
-        
-        for (let attempt = 0; attempt < attempts; attempt++) {
-            const placed = this.tryPlaceWordWithIntersections(word, existingWords);
-            if (placed) return placed;
-        }
-        
-        return null;
-    }
-
-    /**
-     * Attempts to place a word by finding intersections with existing words.
-     * This is the primary method for creating interlocking crossword patterns.
-     * @param {string} word - The word to place
-     * @param {Array} existingWords - Array of already placed words
-     * @returns {Object|null} - Placed word object or null if placement failed
-     */
-    tryPlaceWordWithIntersections(word, existingWords) {
-        const attempts = 50; // Limit attempts to avoid infinite loops
-        
-        for (let attempt = 0; attempt < attempts; attempt++) {
-            for (const existingWord of existingWords) {
-                const intersection = this.findIntersection(word, existingWord);
-                if (intersection) {
-                    const placed = this.placeWordAtIntersection(word, intersection);
-                    if (placed) return placed;
-                }
-            }
-        }
-        
-        return null;
-    }
-
-    /**
-     * Attempts to place a word in empty space when no intersections are possible.
-     * This ensures more words get placed even if they don't intersect perfectly.
-     * @param {string} word - The word to place
-     * @param {Array} existingWords - Array of already placed words
-     * @returns {Object|null} - Placed word object or null if placement failed
-     */
-    tryPlaceWordInEmptySpace(word, existingWords) {
-        const attempts = 50;
-        
-        for (let attempt = 0; attempt < attempts; attempt++) {
-            const horizontal = Math.random() < 0.5;
-            
-            // Try to place near existing words for potential future intersections
-            let row, col;
-            
-            if (existingWords.length > 0) {
-                // Pick a random existing word and try to place near it
-                const randomWord = existingWords[Math.floor(Math.random() * existingWords.length)];
-                if (horizontal) {
-                    row = randomWord.row + Math.floor(Math.random() * 3) - 1; // Within 1 row
-                    col = Math.floor(Math.random() * (this.gridSize - word.length + 1));
-                } else {
-                    row = Math.floor(Math.random() * (this.gridSize - word.length + 1));
-                    col = randomWord.col + Math.floor(Math.random() * 3) - 1; // Within 1 column
-                }
-            } else {
-                // Random placement if no existing words
-                row = Math.floor(Math.random() * (this.gridSize - word.length + 1));
-                col = Math.floor(Math.random() * (this.gridSize - word.length + 1));
-            }
-            
-            // Ensure bounds
-            row = Math.max(0, Math.min(this.gridSize - word.length, row));
-            col = Math.max(0, Math.min(this.gridSize - word.length, col));
-            
-            if (horizontal) {
-                if (this.canPlaceWordHorizontally(word, row, col)) {
-                    return this.placeWordHorizontally(word, row, col, existingWords.length + 1);
-                }
-            } else {
-                if (this.canPlaceWordVertically(word, row, col)) {
-                    return this.placeWordVertically(word, row, col, existingWords.length + 1);
-                }
-            }
-        }
-        
-        return null;
-    }
-
-    /**
-     * Checks if a word can be placed horizontally at the specified position.
-     * @param {string} word - The word to check
-     * @param {number} row - Row position
-     * @param {number} col - Column position
-     * @returns {boolean} - True if placement is possible
-     */
-    canPlaceWordHorizontally(word, row, col) {
-        if (col + word.length > this.gridSize) return false;
-        
-        for (let i = 0; i < word.length; i++) {
-            const currentCell = this.crossword[row][col + i];
-            if (currentCell !== '' && currentCell !== word[i]) return false;
-        }
-        
-        return true;
-    }
-
-    /**
-     * Checks if a word can be placed vertically at the specified position.
-     * @param {string} word - The word to check
-     * @param {number} row - Row position
-     * @param {number} col - Column position
-     * @returns {boolean} - True if placement is possible
-     */
-    canPlaceWordVertically(word, row, col) {
-        if (row + word.length > this.gridSize) return false;
-        
-        for (let i = 0; i < word.length; i++) {
-            const currentCell = this.crossword[row + i][col];
-            if (currentCell !== '' && currentCell !== word[i]) return false;
-        }
-        
-        return true;
-    }
-
-    /**
-     * Places a word horizontally at the specified position.
-     * @param {string} word - The word to place
-     * @param {number} row - Row position
-     * @param {number} col - Column position
-     * @param {number} number - Word number for clues
-     * @returns {Object} - Placed word object
-     */
-    placeWordHorizontally(word, row, col, number) {
-        for (let i = 0; i < word.length; i++) {
-            this.crossword[row][col + i] = word[i];
-        }
-        
-        return {
-            word: word,
-            row: row,
-            col: col,
+        // Place central word horizontally
+        const centralCol = Math.max(0, center - Math.floor(centralWord.length / 2));
+        const centralPlacement = {
+            word: centralWord,
+            row: center,
+            col: centralCol,
             horizontal: true,
-            number: number
+            number: 1
         };
-    }
-
-    /**
-     * Places a word vertically at the specified position.
-     * @param {string} word - The word to place
-     * @param {number} row - Row position
-     * @param {number} col - Column position
-     * @param {number} number - Word number for clues
-     * @returns {Object} - Placed word object
-     */
-    placeWordVertically(word, row, col, number) {
-        for (let i = 0; i < word.length; i++) {
-            this.crossword[row + i][col] = word[i];
+        
+        console.log('Central word placement:', centralPlacement);
+        
+        this.placeWord(centralPlacement);
+        this.placedWords.push(centralPlacement);
+        
+        console.log(`Placed central word "${centralWord}" at [${center}, ${centralCol}]`);
+        console.log('Grid after central word:');
+        this.logGrid();
+        
+        // Try to place remaining words with intersections
+        const remainingWords = words.filter(w => w !== centralWord);
+        console.log('Remaining words to place:', remainingWords.length);
+        
+        let attempts = 0;
+        const maxAttempts = 200; // Increased max attempts
+        let placedCount = 0;
+        
+        // Sort words by length (shorter words are easier to place)
+        // Also remove duplicates to avoid the same word appearing multiple times
+        const uniqueWords = [...new Set(remainingWords)];
+        const sortedWords = uniqueWords.sort((a, b) => a.length - b.length);
+        
+        console.log(`Processing ${sortedWords.length} unique words (removed ${remainingWords.length - sortedWords.length} duplicates)`);
+        
+        for (const word of sortedWords) {
+            if (attempts >= maxAttempts) break;
+            
+            console.log(`Attempting to place word "${word}" (attempt ${attempts + 1})`);
+            const placement = this.findBestIntersectionPlacement(word);
+            
+            if (placement) {
+                console.log(`Found placement for "${word}":`, placement);
+                this.placeWord(placement);
+                this.placedWords.push(placement);
+                placedCount++;
+                console.log(`Successfully placed word "${word}" with intersection`);
+                console.log('Grid after placement:');
+                this.logGrid();
+            } else {
+                console.log(`Could not place word "${word}" with intersection`);
+            }
+            
+            attempts++;
         }
         
-        return {
-            word: word,
-            row: row,
-            col: col,
-            horizontal: false,
-            number: number
-        };
+        console.log(`=== GRID GENERATION COMPLETE ===`);
+        console.log(`Successfully placed ${this.placedWords.length} words`);
+        console.log(`Final grid state:`);
+        this.logGrid();
+        
+        return this.placedWords.length >= Math.min(5, words.length);
     }
 
     /**
-     * Finds valid intersections between a new word and existing words.
-     * This is the core method for creating interlocking crossword patterns.
-     * @param {string} newWord - The word to place
-     * @param {Object} existingWord - An existing word in the grid
-     * @returns {Object|null} - Intersection data or null if no valid intersection
+     * Logs the current grid state for debugging.
      */
-    findIntersection(newWord, existingWord) {
-        const intersections = [];
+    logGrid() {
+        console.log('Grid contents:');
+        for (let row = 0; row < this.gridSize; row++) {
+            let rowStr = '';
+            for (let col = 0; col < this.gridSize; col++) {
+                const cell = this.crossword[row][col];
+                rowStr += (cell || ' ') + ' ';
+            }
+            console.log(`Row ${row}: ${rowStr}`);
+        }
+    }
+
+    /**
+     * Finds the best placement for a word that intersects with existing words.
+     * @param {string} word - Word to place
+     * @returns {Object|null} - Best placement or null if none found
+     */
+    findBestIntersectionPlacement(word) {
+        let bestPlacement = null;
+        let bestScore = -1;
         
-        if (existingWord.horizontal) {
-            // Existing word is horizontal, try to place new word vertically
-            for (let i = 0; i < existingWord.word.length; i++) {
-                const row = existingWord.row;
-                const col = existingWord.col + i;
-                const letter = existingWord.word[i];
+        // First try to find intersections with existing words
+        for (const placedWord of this.placedWords) {
+            const intersections = this.findWordIntersections(word, placedWord.word);
+            
+            for (const intersection of intersections) {
+                const placement = this.calculateIntersectionPlacement(word, placedWord, intersection);
                 
-                // Find matching letters in the new word
-                for (let j = 0; j < newWord.length; j++) {
-                    if (newWord[j] === letter) {
-                        // Calculate where the new word would start
-                        const newRow = row - j;
-                        
-                        // Check if this placement is valid
-                        if (newRow >= 0 && newRow + newWord.length <= this.gridSize) {
-                            // Verify the placement doesn't conflict with existing letters
-                            let canPlace = true;
-                            for (let k = 0; k < newWord.length; k++) {
-                                const checkRow = newRow + k;
-                                const checkCol = col;
-                                
-                                if (checkRow < 0 || checkRow >= this.gridSize || checkCol < 0 || checkCol >= this.gridSize) {
-                                    canPlace = false;
-                                    break;
-                                }
-                                
-                                const currentCell = this.crossword[checkRow][checkCol];
-                                if (currentCell !== '' && currentCell !== newWord[k]) {
-                                    canPlace = false;
-                                    break;
-                                }
-                            }
-                            
-                            if (canPlace) {
-                                intersections.push({
-                                    row: newRow,
-                                    col: col,
-                                    horizontal: false,
-                                    intersectionPoint: j,
-                                    existingLetterIndex: i
-                                });
-                            }
-                        }
+                if (placement && this.isValidPlacement(placement)) {
+                    const score = this.calculatePlacementScore(placement);
+                    
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestPlacement = placement;
                     }
                 }
+            }
+        }
+        
+        // If no intersection found, try placing in empty space
+        if (!bestPlacement) {
+            bestPlacement = this.findEmptySpacePlacement(word);
+        }
+        
+        // If still no placement, try placing adjacent to existing words
+        if (!bestPlacement) {
+            bestPlacement = this.findAdjacentPlacement(word);
+        }
+        
+        if (bestPlacement) {
+            // Assign a unique number based on placement order
+            bestPlacement.number = this.placedWords.length + 1;
+            
+            // Ensure the number is unique across all placed words
+            const existingNumbers = this.placedWords.map(w => w.number);
+            while (existingNumbers.includes(bestPlacement.number)) {
+                bestPlacement.number++;
+            }
+        }
+        
+        return bestPlacement;
+    }
+
+    /**
+     * Calculates placement coordinates for a word intersecting with an existing word.
+     * @param {string} word - Word to place
+     * @param {Object} existingWord - Existing word to intersect with
+     * @param {Object} intersection - Intersection data
+     * @returns {Object|null} - Placement object or null if invalid
+     */
+    calculateIntersectionPlacement(word, existingWord, intersection) {
+        if (existingWord.horizontal) {
+            // Place new word vertically
+            const newRow = existingWord.row - intersection.word2Index;
+            const newCol = existingWord.col + intersection.word1Index;
+            
+            if (newRow >= 0 && newRow + word.length <= this.gridSize) {
+                return {
+                    word: word,
+                    row: newRow,
+                    col: newCol,
+                    horizontal: false
+                };
             }
         } else {
-            // Existing word is vertical, try to place new word horizontally
-            for (let i = 0; i < existingWord.word.length; i++) {
-                const row = existingWord.row + i;
-                const col = existingWord.col;
-                const letter = existingWord.word[i];
+            // Place new word horizontally
+            const newRow = existingWord.row + intersection.word1Index;
+            const newCol = existingWord.col - intersection.word2Index;
+            
+            if (newCol >= 0 && newCol + word.length <= this.gridSize) {
+                return {
+                    word: word,
+                    row: newRow,
+                    col: newCol,
+                    horizontal: true
+                };
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Finds a placement for a word in empty space when no intersections are available.
+     * @param {string} word - Word to place
+     * @returns {Object|null} - Placement object or null if no space found
+     */
+    findEmptySpacePlacement(word) {
+        // Try to find a row or column with enough empty space
+        for (let row = 0; row < this.gridSize; row++) {
+            for (let col = 0; col <= this.gridSize - word.length; col++) {
+                // Check if we can place horizontally
+                let canPlace = true;
+                for (let i = 0; i < word.length; i++) {
+                    if (this.crossword[row][col + i] !== '') {
+                        canPlace = false;
+                        break;
+                    }
+                }
                 
-                // Find matching letters in the new word
-                for (let j = 0; j < newWord.length; j++) {
-                    if (newWord[j] === letter) {
-                        // Calculate where the new word would start
-                        const newCol = col - j;
-                        
-                        // Check if this placement is valid
-                        if (newCol >= 0 && newCol + newWord.length <= this.gridSize) {
-                            // Verify the placement doesn't conflict with existing letters
-                            let canPlace = true;
-                            for (let k = 0; k < newWord.length; k++) {
-                                const checkRow = row;
-                                const checkCol = newCol + k;
-                                
-                                if (checkRow < 0 || checkRow >= this.gridSize || checkCol < 0 || checkCol >= this.gridSize) {
-                                    canPlace = false;
-                                    break;
-                                }
-                                
-                                const currentCell = this.crossword[checkRow][checkCol];
-                                if (currentCell !== '' && currentCell !== newWord[k]) {
-                                    canPlace = false;
-                                    break;
-                                }
-                            }
-                            
-                            if (canPlace) {
-                                intersections.push({
-                                    row: row,
-                                    col: newCol,
-                                    horizontal: true,
-                                    intersectionPoint: j,
-                                    existingLetterIndex: i
-                                });
-                            }
+                if (canPlace) {
+                    return {
+                        word: word,
+                        row: row,
+                        col: col,
+                        horizontal: true
+                    };
+                }
+            }
+        }
+        
+        // Try vertical placement
+        for (let col = 0; col < this.gridSize; col++) {
+            for (let row = 0; row <= this.gridSize - word.length; row++) {
+                // Check if we can place vertically
+                let canPlace = true;
+                for (let i = 0; i < word.length; i++) {
+                    if (this.crossword[row + i][col] !== '') {
+                        canPlace = false;
+                        break;
+                    }
+                }
+                
+                if (canPlace) {
+                    return {
+                        word: word,
+                        row: row,
+                        col: col,
+                        horizontal: false
+                    };
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Finds a placement for a word adjacent to existing words when no intersections are available.
+     * @param {string} word - Word to place
+     * @returns {Object|null} - Placement object or null if no placement found
+     */
+    findAdjacentPlacement(word) {
+        // Try to place adjacent to existing words
+        for (const placedWord of this.placedWords) {
+            if (placedWord.horizontal) {
+                // Try placing above or below horizontally
+                const aboveRow = placedWord.row - 1;
+                const belowRow = placedWord.row + 1;
+                
+                if (aboveRow >= 0) {
+                    let canPlaceAbove = true;
+                    for (let i = 0; i < word.length; i++) {
+                        if (this.crossword[aboveRow][placedWord.col + i] !== '') {
+                            canPlaceAbove = false;
+                            break;
                         }
+                    }
+                    
+                    if (canPlaceAbove) {
+                        return {
+                            word: word,
+                            row: aboveRow,
+                            col: placedWord.col,
+                            horizontal: true
+                        };
+                    }
+                }
+                
+                if (belowRow < this.gridSize) {
+                    let canPlaceBelow = true;
+                    for (let i = 0; i < word.length; i++) {
+                        if (this.crossword[belowRow][placedWord.col + i] !== '') {
+                            canPlaceBelow = false;
+                            break;
+                        }
+                    }
+                    
+                    if (canPlaceBelow) {
+                        return {
+                            word: word,
+                            row: belowRow,
+                            col: placedWord.col,
+                            horizontal: true
+                        };
+                    }
+                }
+            } else {
+                // Try placing left or right vertically
+                const leftCol = placedWord.col - 1;
+                const rightCol = placedWord.col + 1;
+                
+                if (leftCol >= 0) {
+                    let canPlaceLeft = true;
+                    for (let i = 0; i < word.length; i++) {
+                        if (this.crossword[placedWord.row + i][leftCol] !== '') {
+                            canPlaceLeft = false;
+                            break;
+                        }
+                    }
+                    
+                    if (canPlaceLeft) {
+                        return {
+                            word: word,
+                            row: placedWord.row,
+                            col: leftCol,
+                            horizontal: false
+                        };
+                    }
+                }
+                
+                if (rightCol < this.gridSize) {
+                    let canPlaceRight = true;
+                    for (let i = 0; i < word.length; i++) {
+                        if (this.crossword[placedWord.row + i][rightCol] !== '') {
+                            canPlaceRight = false;
+                            break;
+                        }
+                    }
+                    
+                    if (canPlaceRight) {
+                        return {
+                            word: word,
+                            row: placedWord.row,
+                            col: rightCol,
+                            horizontal: false
+                        };
                     }
                 }
             }
         }
         
-        // Return a random intersection if any exist
-        return intersections.length > 0 ? 
-            intersections[Math.floor(Math.random() * intersections.length)] : null;
+        return null;
     }
 
-    placeWordAtIntersection(word, intersection) {
-        const { row, col, horizontal } = intersection;
-        
-        // Validate bounds and array existence
-        if (row < 0 || row >= this.gridSize || col < 0 || col >= this.gridSize) {
-            return null;
+    /**
+     * Adds professional black square patterns to the grid.
+     */
+    addProfessionalBlackSquares() {
+        // Add black squares around word boundaries
+        for (const placedWord of this.placedWords) {
+            this.addBoundaryBlackSquares(placedWord);
         }
         
-        if (!this.crossword[row] || !this.crossword[row + (horizontal ? 0 : word.length - 1)]) {
-            return null;
-        }
+        // Fill remaining spaces strategically
+        this.fillStrategicBlackSquares();
+    }
+
+    /**
+     * Adds black squares around word boundaries for proper separation.
+     * @param {Object} placedWord - Word to add boundaries around
+     */
+    addBoundaryBlackSquares(placedWord) {
+        const { word, row, col, horizontal } = placedWord;
         
         if (horizontal) {
-            if (col + word.length > this.gridSize) return null;
+            // Add black squares at start and end
+            if (col > 0) this.addBlackSquare(row, col - 1);
+            if (col + word.length < this.gridSize) this.addBlackSquare(row, col + word.length);
             
-            for (let i = 0; i < word.length; i++) {
-                const currentCell = this.crossword[row][col + i];
-                if (currentCell === '#' || (currentCell !== '' && currentCell !== word[i])) return null;
+            // Occasionally add black squares above/below (20% chance)
+            if (Math.random() < 0.2) {
+                const randomCol = col + Math.floor(Math.random() * word.length);
+                if (row > 0) this.addBlackSquare(row - 1, randomCol);
+                if (row < this.gridSize - 1) this.addBlackSquare(row + 1, randomCol);
             }
-            
-            for (let i = 0; i < word.length; i++) {
-                this.crossword[row][col + i] = word[i];
-            }
-            
-            return {
-                word: word,
-                row: row,
-                col: col,
-                horizontal: true,
-                number: this.placedWords.length + 1
-            };
         } else {
-            if (row + word.length > this.gridSize) return null;
+            // Add black squares at start and end
+            if (row > 0) this.addBlackSquare(row - 1, col);
+            if (row + word.length < this.gridSize) this.addBlackSquare(row + word.length, col);
             
-            for (let i = 0; i < word.length; i++) {
-                const currentCell = this.crossword[row + i][col];
-                if (currentCell === '#' || (currentCell !== '' && currentCell !== word[i])) return null;
+            // Occasionally add black squares to left/right (20% chance)
+            if (Math.random() < 0.2) {
+                const randomRow = row + Math.floor(Math.random() * word.length);
+                if (col > 0) this.addBlackSquare(randomRow, col - 1);
+                if (col < this.gridSize - 1) this.addBlackSquare(randomRow, col + 1);
             }
-            
-            for (let i = 0; i < word.length; i++) {
-                this.crossword[row + i][col] = word[i];
-            }
-            
-            return {
-                word: word,
-                row: row,
-                col: col,
-                horizontal: false,
-                number: this.placedWords.length + 1
-            };
         }
     }
 
-    placeWordWithSymmetry(word) {
-        const attempts = this.config.get('placement.maxAttempts') || 100;
+    /**
+     * Adds a black square at the specified position if valid.
+     * @param {number} row - Row position
+     * @param {number} col - Column position
+     */
+    addBlackSquare(row, col) {
+        if (row >= 0 && row < this.gridSize && col >= 0 && col < this.gridSize) {
+            if (this.crossword[row][col] === '' && this.canPlaceBlackSquare(row, col)) {
+                this.crossword[row][col] = '#';
+            }
+        }
+    }
+
+    /**
+     * Fills remaining spaces with strategic black squares.
+     */
+    fillStrategicBlackSquares() {
+        const targetPercentage = this.config.get('blackSquares.percentage');
+        const targetCount = Math.floor(this.gridSize * this.gridSize * targetPercentage);
+        let currentCount = 0;
         
-        for (let attempt = 0; attempt < attempts; attempt++) {
-            const horizontal = Math.random() < 0.5;
+        // Count existing black squares
+        for (let row = 0; row < this.gridSize; row++) {
+            for (let col = 0; col < this.gridSize; col++) {
+                if (this.crossword[row][col] === '#') currentCount++;
+            }
+        }
+        
+        // Add strategic black squares to reach target
+        let attempts = 0;
+        while (currentCount < targetCount && attempts < 200) {
             const row = Math.floor(Math.random() * this.gridSize);
             const col = Math.floor(Math.random() * this.gridSize);
             
-            if (horizontal) {
-                const placed = this.tryPlaceHorizontal(word, row, col);
-                if (placed) return placed;
-            } else {
-                const placed = this.tryPlaceVertical(word, row, col);
-                if (placed) return placed;
+            if (this.crossword[row][col] === '' && this.canPlaceBlackSquare(row, col)) {
+                this.crossword[row][col] = '#';
+                currentCount++;
             }
-        }
-        
-        return null;
-    }
-
-    tryPlaceHorizontal(word, row, col) {
-        if (col + word.length > this.gridSize || row < 0 || row >= this.gridSize) return null;
-        
-        // Validate array existence
-        if (!this.crossword[row]) return null;
-        
-        for (let i = 0; i < word.length; i++) {
-            const currentCell = this.crossword[row][col + i];
-            if (currentCell === '#' || (currentCell !== '' && currentCell !== word[i])) return null;
-        }
-        
-        for (let i = 0; i < word.length; i++) {
-            this.crossword[row][col + i] = word[i];
-        }
-        
-        return {
-            word: word,
-            row: row,
-            col: col,
-            horizontal: true,
-            number: this.placedWords.length + 1
-        };
-    }
-
-    tryPlaceVertical(word, row, col) {
-        if (row + word.length > this.gridSize || col < 0 || col >= this.gridSize) return null;
-        
-        // Validate array existence
-        if (!this.crossword[row] || !this.crossword[row + word.length - 1]) return null;
-        
-        for (let i = 0; i < word.length; i++) {
-            const currentCell = this.crossword[row + i][col];
-            if (currentCell === '#' || (currentCell !== '' && currentCell !== word[i])) return null;
-        }
-        
-        for (let i = 0; i < word.length; i++) {
-            this.crossword[row + i][col] = word[i];
-        }
-        
-        return {
-            word: word,
-            row: row,
-            col: col,
-            horizontal: false,
-            number: this.placedWords.length + 1
-        };
-    }
-
-    async generateCrossword() {
-        try {
-            console.log('Starting crossword generation...');
-            await this.loadWordsFromCSV();
-            console.log('Words loaded, initializing grid...');
-            this.initializeGrid();
-            console.log('Grid initialized, placing black squares...');
-            this.placeBlackSquares();
-            console.log('Black squares placed, placing words...');
-            this.placeWordsWithSymmetry();
-            console.log('Words placed, validation complete');
             
-            // Final validation before returning
-            this.validateFinalGrid();
-            
-            return {
-                grid: this.crossword,
-                words: this.placedWords,
-                size: this.gridSize
-            };
-        } catch (error) {
-            console.error('Error in generateCrossword:', error);
-            throw error;
+            attempts++;
         }
+        
+        console.log(`Black squares: ${currentCount}/${targetCount} (${Math.round(currentCount / (this.gridSize * this.gridSize) * 100)}%)`);
     }
 }
 
@@ -1085,12 +1594,28 @@ class CrosswordRenderer {
     isWordStart(row, col, direction) {
         if (direction === 'across') {
             // Check if this is the start of a horizontal word
-            return (col === 0 || this.crossword[row][col - 1] === '#') && 
-                   (col < this.gridSize - 1 && this.crossword[row][col + 1] !== '#');
+            // Must have at least 2 letters to be a valid word
+            if (col === 0 || this.crossword[row][col - 1] === '#') {
+                // Count how many letters follow this cell horizontally
+                let letterCount = 0;
+                for (let c = col; c < this.gridSize && this.crossword[row][c] !== '#' && this.crossword[row][c] !== ''; c++) {
+                    letterCount++;
+                }
+                return letterCount >= 2; // Only count as word start if at least 2 letters
+            }
+            return false;
         } else {
             // Check if this is the start of a vertical word
-            return (row === 0 || this.crossword[row - 1][col] === '#') && 
-                   (row < this.gridSize - 1 && this.crossword[row + 1][col] !== '#');
+            // Must have at least 2 letters to be a valid word
+            if (row === 0 || this.crossword[row - 1][col] === '#') {
+                // Count how many letters follow this cell vertically
+                let letterCount = 0;
+                for (let r = row; r < this.gridSize && this.crossword[r][col] !== '#' && this.crossword[r][col] !== ''; r++) {
+                    letterCount++;
+                }
+                return letterCount >= 2; // Only count as word start if at least 2 letters
+            }
+            return false;
         }
     }
 
