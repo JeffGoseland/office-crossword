@@ -153,41 +153,28 @@ h1 {
     font-weight: 400;
 }
 
-.error {
-    text-align: center;
-    font-size: 18px;
-    color: var(--md-error);
-    padding: 40px;
-    background-color: #ffebee;
-    border: 1px solid #ffcdd2;
-    border-radius: 8px;
-    margin: 20px 0;
-    box-shadow: var(--md-elevation-1);
-}
-
-/* Crossword Grid */
+/* Crossword Grid - Clean Traditional Style */
 .crossword-wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 20px 0;
+    margin: 30px 0;
 }
 
 .crossword {
     display: grid;
     gap: 1px;
-    background-color: var(--md-grid-border);
+    background-color: #333;
     padding: 2px;
-    border-radius: 12px;
-    box-shadow: var(--md-elevation-2);
-    overflow: hidden;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .cell {
     width: 45px;
     height: 45px;
-    background-color: var(--md-grid-white);
-    border: 1px solid var(--md-grid-border);
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -195,42 +182,14 @@ h1 {
     font-weight: 500;
     text-transform: uppercase;
     position: relative;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    color: var(--md-text-primary);
-}
-
-.cell:hover {
-    background-color: var(--md-grid-hover);
-    transform: scale(1.02);
-    z-index: 1;
+    cursor: default;
+    color: #333;
+    font-family: 'Georgia', 'Times New Roman', serif;
 }
 
 .cell.black {
-    background-color: var(--md-grid-black);
-    border-color: var(--md-grid-black);
-}
-
-.cell.black:hover {
-    background-color: var(--md-grid-black);
-    transform: none;
-}
-
-/* Grid Labels - Integrated into axes */
-.cell.axis-label {
-    background-color: var(--md-surface-variant);
-    border-color: var(--md-grid-border);
-    font-size: 12px;
-    font-weight: 400;
-    color: var(--md-text-secondary);
-    cursor: default;
-    text-align: center;
-    opacity: 0.8;
-}
-
-.cell.axis-label:hover {
-    background-color: var(--md-surface-variant);
-    transform: none;
+    background-color: #000000;
+    border-color: #000000;
 }
 
 .number {
@@ -238,14 +197,15 @@ h1 {
     top: 2px;
     left: 2px;
     font-size: 10px;
-    font-weight: 500;
-    color: var(--md-grid-number);
+    font-weight: 600;
+    color: #333;
     background-color: transparent;
     padding: 0;
     line-height: 1;
+    font-family: Arial, sans-serif;
 }
 
-/* Clues */
+/* Clues Section */
 .clues {
     margin-top: 40px;
     display: flex;
@@ -258,57 +218,60 @@ h1 {
     flex: 1;
     min-width: 300px;
     max-width: 500px;
-    background-color: var(--md-surface);
-    border-radius: 12px;
+    background-color: #ffffff;
+    border-radius: 8px;
     padding: 24px;
-    box-shadow: var(--md-elevation-1);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.clue-section:hover {
-    box-shadow: var(--md-elevation-2);
-    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e0e0e0;
 }
 
 .clue-section h3 {
-    color: var(--md-primary);
+    color: #2c3e50;
     font-size: 1.5rem;
     margin-bottom: 20px;
     padding-bottom: 12px;
-    border-bottom: 2px solid var(--md-primary-light);
+    border-bottom: 2px solid #3498db;
     text-align: center;
-    font-weight: 400;
-    letter-spacing: 0.5px;
+    font-weight: 600;
 }
 
 .clue {
     margin-bottom: 16px;
     padding: 16px 20px;
-    background-color: var(--md-surface-variant);
-    border-radius: 8px;
-    border-left: 4px solid var(--md-primary);
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    border-left: 4px solid #3498db;
     line-height: 1.6;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: var(--md-elevation-1);
+    transition: background-color 0.2s ease;
 }
 
 .clue:hover {
-    background-color: var(--md-surface);
-    transform: translateX(4px);
-    box-shadow: var(--md-elevation-2);
+    background-color: #e9ecef;
 }
 
 .clue-number {
     margin-right: 12px;
     font-weight: 600;
-    color: var(--md-primary);
+    color: #3498db;
     font-size: 16px;
 }
 
 .clue-text {
-    color: var(--md-text-primary);
+    color: #333;
     font-size: 16px;
     font-weight: 400;
+}
+
+/* Error Messages */
+.error {
+    text-align: center;
+    font-size: 18px;
+    color: #e74c3c;
+    padding: 20px;
+    background-color: #fdf2f2;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    margin: 20px 0;
 }
 
 /* Responsive Design */

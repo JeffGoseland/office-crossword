@@ -82,6 +82,9 @@ class CrosswordConfig {
         this.saveToCookies();
     }
 
+    /**
+     * Resets configuration to default values and clears cookies.
+     */
     resetToDefaults() {
         this.config = { ...this.defaultConfig };
         this.deleteCookie('crosswordConfig');
@@ -1036,33 +1039,12 @@ class CrosswordRenderer {
     createCrosswordGrid(grid, size) {
         const crosswordElement = document.createElement('div');
         crosswordElement.className = 'crossword';
-        // Add +1 to size to accommodate axis labels
-        crosswordElement.style.gridTemplateColumns = `repeat(${size + 1}, ${this.cellSize}px)`;
-        crosswordElement.style.gridTemplateRows = `repeat(${size + 1}, ${this.cellSize}px)`;
+        // No more +1 since we removed axis labels
+        crosswordElement.style.gridTemplateColumns = `repeat(${size}, ${this.cellSize}px)`;
+        crosswordElement.style.gridTemplateRows = `repeat(${size}, ${this.cellSize}px)`;
 
-        // Create top-left corner cell (empty)
-        const cornerCell = document.createElement('div');
-        cornerCell.className = 'cell axis-label';
-        cornerCell.textContent = '';
-        crosswordElement.appendChild(cornerCell);
-
-        // Create top row labels (A, B, C...)
-        for (let col = 0; col < size; col++) {
-            const labelCell = document.createElement('div');
-            labelCell.className = 'cell axis-label';
-            labelCell.textContent = String.fromCharCode(65 + col); // A, B, C...
-            crosswordElement.appendChild(labelCell);
-        }
-
-        // Create left column labels and grid content
+        // Create grid content directly without axis labels
         for (let row = 0; row < size; row++) {
-            // Left column label (1, 2, 3...)
-            const labelCell = document.createElement('div');
-            labelCell.className = 'cell axis-label';
-            labelCell.textContent = (row + 1).toString();
-            crosswordElement.appendChild(labelCell);
-
-            // Grid content row
             for (let col = 0; col < size; col++) {
                 const cell = this.createCell(grid[row][col], row, col);
                 crosswordElement.appendChild(cell);
