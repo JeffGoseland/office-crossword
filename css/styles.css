@@ -1,23 +1,67 @@
-/* Office Crossword - Consolidated Styles */
+/* Office Crossword - Clean Material Design Styles */
 
-/* General Layout and Components */
+/* CSS Custom Properties */
+:root {
+    /* Primary Colors */
+    --md-primary: #1976d2;
+    --md-primary-light: #42a5f5;
+    --md-primary-dark: #1565c0;
+    
+    /* Surface Colors */
+    --md-surface: #ffffff;
+    --md-surface-variant: #f5f5f5;
+    
+    /* Background Colors */
+    --md-background: #fafafa;
+    --md-background-paper: #ffffff;
+    
+    /* Text Colors */
+    --md-text-primary: #212121;
+    --md-text-secondary: #757575;
+    --md-text-on-primary: #ffffff;
+    
+    /* Error Colors */
+    --md-error: #d32f2f;
+    
+    /* Elevation Shadows */
+    --md-elevation-1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    --md-elevation-2: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+    --md-elevation-3: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+    --md-elevation-4: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);
+    
+    /* Grid Colors */
+    --md-grid-border: #e0e0e0;
+    --md-grid-black: #424242;
+    --md-grid-white: #ffffff;
+    --md-grid-hover: #f5f5f5;
+    --md-grid-number: #757575;
+}
+
+/* Base Styles */
+body {
+    background-color: var(--md-background);
+    color: var(--md-text-primary);
+    font-family: 'Roboto', 'Segoe UI', 'Georgia', serif;
+    margin: 0;
+    padding: 0;
+}
+
 .container {
     max-width: 1400px;
-    margin: 0 auto;
+    margin: 20px auto;
     padding: 40px 20px;
-    font-family: 'Georgia', serif;
-    background-color: white;
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    background-color: var(--md-background-paper);
+    border-radius: 16px;
+    box-shadow: var(--md-elevation-3);
 }
 
 h1 {
     text-align: center;
-    color: #2c3e50;
+    color: var(--md-primary);
     font-size: 3rem;
     margin-bottom: 40px;
-    font-weight: 700;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    font-weight: 300;
+    letter-spacing: -0.5px;
 }
 
 /* Stanley Image */
@@ -27,36 +71,50 @@ h1 {
 }
 
 .stanley-img {
-    max-width: 200px;
+    max-width: 400px;
     height: auto;
     border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease;
 }
 
-/* Buttons and Links */
+.stanley-img:hover {
+    transform: scale(1.05);
+}
+
+/* Buttons */
 .generate-btn {
     display: block;
     margin: 30px auto;
-    padding: 15px 30px;
-    background-color: #3498db;
-    color: white;
+    padding: 16px 32px;
+    background-color: var(--md-primary);
+    color: var(--md-text-on-primary);
     border: none;
-    border-radius: 8px;
+    border-radius: 28px;
     font-size: 18px;
     cursor: pointer;
-    transition: all 0.3s ease;
-    font-weight: 600;
-    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-weight: 500;
+    box-shadow: var(--md-elevation-2);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    min-height: 56px;
 }
 
 .generate-btn:hover {
-    background-color: #2980b9;
+    background-color: var(--md-primary-dark);
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+    box-shadow: var(--md-elevation-4);
 }
 
 .generate-btn:active {
     transform: translateY(0);
+    box-shadow: var(--md-elevation-2);
+}
+
+.generate-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.3);
 }
 
 .config-link {
@@ -65,40 +123,46 @@ h1 {
 }
 
 .config-link a {
-    color: #7f8c8d;
+    color: var(--md-text-secondary);
     text-decoration: none;
     font-size: 16px;
-    padding: 10px 20px;
-    border: 2px solid #ecf0f1;
-    border-radius: 6px;
-    transition: all 0.3s ease;
+    padding: 12px 24px;
+    border: 2px solid var(--md-grid-border);
+    border-radius: 24px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-block;
+    background-color: var(--md-surface);
+    font-weight: 500;
 }
 
 .config-link a:hover {
-    color: #34495e;
-    border-color: #bdc3c7;
-    background-color: #f8f9fa;
+    color: var(--md-primary);
+    border-color: var(--md-primary);
+    background-color: var(--md-primary-light);
+    color: var(--md-text-on-primary);
+    transform: translateY(-1px);
+    box-shadow: var(--md-elevation-2);
 }
 
-/* Loading and Error States */
+/* Status Messages */
 .loading {
     text-align: center;
     font-size: 18px;
-    color: #7f8c8d;
+    color: var(--md-text-secondary);
     padding: 40px;
-    font-style: italic;
+    font-weight: 400;
 }
 
 .error {
     text-align: center;
     font-size: 18px;
-    color: #e74c3c;
+    color: var(--md-error);
     padding: 40px;
-    background-color: #fdf2f2;
-    border: 1px solid #fecaca;
+    background-color: #ffebee;
+    border: 1px solid #ffcdd2;
     border-radius: 8px;
     margin: 20px 0;
+    box-shadow: var(--md-elevation-1);
 }
 
 /* Crossword Grid */
@@ -109,49 +173,63 @@ h1 {
     margin: 20px 0;
 }
 
-.crossword-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-}
-
 .crossword {
     display: grid;
     gap: 1px;
-    background-color: #333;
+    background-color: var(--md-grid-border);
     padding: 2px;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    box-shadow: var(--md-elevation-2);
+    overflow: hidden;
 }
 
 .cell {
     width: 45px;
     height: 45px;
-    background-color: white;
-    border: 1px solid #ccc;
+    background-color: var(--md-grid-white);
+    border: 1px solid var(--md-grid-border);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 18px;
-    font-weight: bold;
+    font-weight: 500;
     text-transform: uppercase;
     position: relative;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--md-text-primary);
 }
 
 .cell:hover {
-    background-color: #f0f0f0;
+    background-color: var(--md-grid-hover);
+    transform: scale(1.02);
+    z-index: 1;
 }
 
 .cell.black {
-    background-color: #000;
-    border-color: #000;
+    background-color: var(--md-grid-black);
+    border-color: var(--md-grid-black);
 }
 
 .cell.black:hover {
-    background-color: #000;
+    background-color: var(--md-grid-black);
+    transform: none;
+}
+
+/* Grid Labels - Integrated into axes */
+.cell.axis-label {
+    background-color: var(--md-primary);
+    border-color: var(--md-primary);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--md-text-on-primary);
+    cursor: default;
+    text-align: center;
+}
+
+.cell.axis-label:hover {
+    background-color: var(--md-primary);
+    transform: none;
 }
 
 .number {
@@ -159,48 +237,14 @@ h1 {
     top: 2px;
     left: 2px;
     font-size: 10px;
-    font-weight: normal;
-    color: #666;
-    background-color: white;
-    padding: 1px 2px;
-    border-radius: 2px;
+    font-weight: 500;
+    color: var(--md-grid-number);
+    background-color: transparent;
+    padding: 0;
     line-height: 1;
 }
 
-/* Grid Labels */
-.grid-labels {
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 20px;
-}
-
-.row-labels {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 10px;
-}
-
-.column-labels {
-    display: flex;
-    justify-content: center;
-}
-
-.grid-label {
-    width: 45px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: bold;
-    color: #666;
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    margin: 0 2px;
-}
-
-/* Clues Styling */
+/* Clues */
 .clues {
     margin-top: 40px;
     display: flex;
@@ -213,42 +257,57 @@ h1 {
     flex: 1;
     min-width: 300px;
     max-width: 500px;
+    background-color: var(--md-surface);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: var(--md-elevation-1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.clue-section:hover {
+    box-shadow: var(--md-elevation-2);
+    transform: translateY(-2px);
 }
 
 .clue-section h3 {
-    color: #2c3e50;
+    color: var(--md-primary);
     font-size: 1.5rem;
     margin-bottom: 20px;
-    padding-bottom: 10px;
-    border-bottom: 2px solid #ecf0f1;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--md-primary-light);
     text-align: center;
+    font-weight: 400;
+    letter-spacing: 0.5px;
 }
 
 .clue {
-    margin-bottom: 15px;
-    padding: 12px 16px;
-    background-color: #f8f9fa;
-    border-radius: 6px;
-    border-left: 4px solid #3498db;
+    margin-bottom: 16px;
+    padding: 16px 20px;
+    background-color: var(--md-surface-variant);
+    border-radius: 8px;
+    border-left: 4px solid var(--md-primary);
     line-height: 1.6;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--md-elevation-1);
 }
 
 .clue:hover {
-    background-color: #e9ecef;
-    transform: translateX(2px);
+    background-color: var(--md-surface);
+    transform: translateX(4px);
+    box-shadow: var(--md-elevation-2);
 }
 
 .clue-number {
     margin-right: 12px;
-    font-weight: bold;
-    color: #3498db;
+    font-weight: 600;
+    color: var(--md-primary);
     font-size: 16px;
 }
 
 .clue-text {
-    color: #2c3e50;
+    color: var(--md-text-primary);
     font-size: 16px;
+    font-weight: 400;
 }
 
 /* Responsive Design */
@@ -283,7 +342,8 @@ h1 {
 @media (max-width: 768px) {
     .container {
         padding: 20px 10px;
-        border-radius: 8px;
+        border-radius: 12px;
+        margin: 10px;
     }
     
     h1 {
@@ -291,10 +351,15 @@ h1 {
         margin-bottom: 25px;
     }
     
+    .stanley-img {
+        max-width: 300px;
+    }
+    
     .generate-btn {
         margin: 20px auto;
         padding: 12px 24px;
         font-size: 16px;
+        min-height: 48px;
     }
     
     .clues {
@@ -306,10 +371,11 @@ h1 {
     .clue-section {
         min-width: 100%;
         max-width: 100%;
+        padding: 20px;
     }
     
     .clue {
-        padding: 10px 14px;
+        padding: 12px 16px;
         margin-bottom: 12px;
     }
     
@@ -337,12 +403,5 @@ h1 {
     .crossword {
         gap: 0.5px;
         padding: 1px;
-    }
-    
-    .grid-label {
-        width: 35px;
-        height: 18px;
-        font-size: 10px;
-        margin: 0 1px;
     }
 }
