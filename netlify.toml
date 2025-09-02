@@ -28,3 +28,28 @@
   for = "/*.json"
   [headers.values]
     Content-Type = "application/json"
+
+[[headers]]
+  for = "/*.jpg"
+  [headers.values]
+    Content-Type = "image/jpeg"
+
+[[headers]]
+  for = "/*.jpeg"
+  [headers.values]
+    Content-Type = "image/jpeg"
+
+[[headers]]
+  for = "/*.png"
+  [headers.values]
+    Content-Type = "image/png"
+
+[[headers]]
+  for = "/*.webp"
+  [headers.values]
+    Content-Type = "image/webp"
+
+[[headers]]
+  for = "/*.gif"
+  [headers.values]
+    Content-Type = "image/gif"

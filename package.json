@@ -1,0 +1,16 @@
+{
+  "name": "office-crossword",
+  "version": "1.0.0",
+  "description": "Dynamic crossword puzzle generator",
+  "main": "index.html",
+  "scripts": {
+    "build": "echo 'No build step required for static site'",
+    "start": "python3 -m http.server 8000",
+    "dev": "python3 -m http.server 8000"
+  },
+  "keywords": ["crossword", "puzzle", "game"],
+  "author": "Jeff Goseland",
+  "license": "MIT",
+  "devDependencies": {},
+  "dependencies": {}
+}
