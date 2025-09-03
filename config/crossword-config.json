@@ -9,10 +9,10 @@
         "avoid2x2Blocks": true
     },
     "words": {
-        "minLength": 3,
+        "minLength": 4,
         "maxLength": 12,
-        "targetCount": 20,
-        "preferLonger": false,
+        "targetCount": 15,
+        "preferLonger": true,
         "balanceAcrossDown": true
     },
     "symmetry": {

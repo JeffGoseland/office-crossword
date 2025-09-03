@@ -210,8 +210,11 @@ class CrosswordGenerator {
                         const clue = parts[0].replace(/"/g, '').trim();
                         const word = parts[1].trim().toLowerCase();
                         
+                        // STRICT WORD VALIDATION - Only allow valid English words
                         if (word.length >= this.config.get('words.minLength') && 
-                            /^[a-z]+$/.test(word)) {
+                            word.length <= this.config.get('words.maxLength') &&
+                            /^[a-z]+$/.test(word) &&
+                            this.isValidEnglishWord(word)) {
                             this.words.push(word);
                             this.clues[word] = clue;
                         }
@@ -230,6 +233,41 @@ class CrosswordGenerator {
     }
 
     /**
+     * Validates if a word is a legitimate English word.
+     * @param {string} word - Word to validate
+     * @returns {boolean} - True if word is valid
+     */
+    isValidEnglishWord(word) {
+        // Must be at least 3 characters
+        if (word.length < 3) return false;
+        
+        // Must contain at least one vowel
+        if (!/[aeiou]/.test(word)) return false;
+        
+        // Must not contain only consonants
+        if (/^[bcdfghjklmnpqrstvwxyz]+$/.test(word)) return false;
+        
+        // Must not be all the same letter
+        if (/^(.)\1+$/.test(word)) return false;
+        
+        // Must not contain common non-word patterns
+        const invalidPatterns = [
+            /^[bcdfghjklmnpqrstvwxyz]{4,}$/, // 4+ consonants in a row
+            /[bcdfghjklmnpqrstvwxyz]{5,}/,   // 5+ consonants anywhere
+            /^[aeiou]{3,}$/,                  // 3+ vowels in a row at start
+            /[aeiou]{4,}/,                    // 4+ vowels anywhere
+            /^[bcdfghjklmnpqrstvwxyz]{3,}[aeiou]?$/, // 3+ consonants at start
+            /[aeiou]?[bcdfghjklmnpqrstvwxyz]{3,}$/  // 3+ consonants at end
+        ];
+        
+        for (const pattern of invalidPatterns) {
+            if (pattern.test(word)) return false;
+        }
+        
+        return true;
+    }
+
+    /**
      * Selects a smart set of words that can create good intersections.
      * Analyzes word compatibility and prioritizes words with many possible connections.
      * @returns {Array} - Array of selected words
@@ -241,9 +279,12 @@ class CrosswordGenerator {
         
         console.log(`Smart word selection: minLength=${minLength}, maxLength=${maxLength}, targetCount=${targetCount}`);
         
-        // Filter words by length requirements
+        // Filter words by length requirements and additional quality checks
         const validWords = this.words.filter(word => 
-            word.length >= minLength && word.length <= maxLength
+            word.length >= minLength && 
+            word.length <= maxLength &&
+            this.isValidEnglishWord(word) &&
+            word.length >= 4  // Minimum 4 letters for better quality
         );
         
         // Group words by length for better intersection potential
@@ -334,19 +375,61 @@ class CrosswordGenerator {
     findWordIntersections(word1, word2) {
         const intersections = [];
         
+        // Only find intersections for valid words
+        if (word1.length < 3 || word2.length < 3) {
+            return intersections;
+        }
+        
         for (let i = 0; i < word1.length; i++) {
             for (let j = 0; j < word2.length; j++) {
                 if (word1[i] === word2[j]) {
+                    // Prefer intersections that create meaningful word segments
+                    const score = this.calculateIntersectionScore(word1, word2, i, j);
                     intersections.push({
                         word1Index: i,
                         word2Index: j,
-                        letter: word1[i]
+                        letter: word1[i],
+                        score: score
                     });
                 }
             }
         }
         
+        // Sort intersections by quality score
+        intersections.sort((a, b) => b.score - a.score);
+        
         return intersections;
+    }
+
+    /**
+     * Calculates a quality score for an intersection between two words.
+     * @param {string} word1 - First word
+     * @param {string} word2 - Second word
+     * @param {number} index1 - Index in first word
+     * @param {number} index2 - Index in second word
+     * @returns {number} - Quality score (higher is better)
+     */
+    calculateIntersectionScore(word1, word2, index1, index2) {
+        let score = 0;
+        
+        // Prefer intersections near the middle of words
+        const mid1 = word1.length / 2;
+        const mid2 = word2.length / 2;
+        const distFromMid1 = Math.abs(index1 - mid1);
+        const distFromMid2 = Math.abs(index2 - mid2);
+        
+        score += (word1.length - distFromMid1) + (word2.length - distFromMid2);
+        
+        // Prefer longer words
+        score += word1.length + word2.length;
+        
+        // Bonus for common letters (e, a, r, t, o, i, n, s)
+        const commonLetters = ['e', 'a', 'r', 't', 'o', 'i', 'n', 's'];
+        if (commonLetters.includes(word1[index1])) {
+            score += 5;
+        }
+        
+        return score;
     }
 
     /**
@@ -674,6 +757,12 @@ class CrosswordGenerator {
      */
     hasMinimumSpacing(placement) {
         const { word, row, col, horizontal } = placement;
+        
+        // ENFORCE MINIMUM WORD LENGTH - Never allow single-letter words
+        if (word.length < 3) {
+            console.log(`Rejecting word "${word}" - too short (${word.length} letters)`);
+            return false;
+        }
         
         // Check spacing from other placed words
         for (const placedWord of this.placedWords) {
@@ -1153,13 +1242,17 @@ class CrosswordGenerator {
             return a.col - b.col; // Then by column
         });
         
-        // Assign sequential numbers
+        // Assign sequential numbers starting from 1
         let number = 1;
         for (const word of sortedWords) {
             word.number = number++;
         }
         
+        // Also update the placedWords array to maintain order
+        this.placedWords = sortedWords;
+        
         console.log('Renumbered words sequentially:', sortedWords.map(w => `${w.number}: ${w.word}`));
+        console.log('Total words placed:', this.placedWords.length);
     }
 
     /**
