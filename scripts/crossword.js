@@ -1112,6 +1112,9 @@ class CrosswordGenerator {
             attempts++;
         }
         
+        // Re-number all words sequentially from top-left to bottom-right
+        this.renumberWordsSequentially();
+        
         console.log(`=== GRID GENERATION COMPLETE ===`);
         console.log(`Successfully placed ${this.placedWords.length} words`);
         console.log(`Final grid state:`);
@@ -1133,6 +1136,30 @@ class CrosswordGenerator {
             }
             console.log(`Row ${row}: ${rowStr}`);
         }
+    }
+
+    /**
+     * Renumbers all placed words sequentially from top-left to bottom-right.
+     * This ensures professional crossword numbering.
+     */
+    renumberWordsSequentially() {
+        if (this.placedWords.length === 0) return;
+        
+        // Sort words by position (top-left to bottom-right)
+        const sortedWords = [...this.placedWords].sort((a, b) => {
+            if (a.row !== b.row) {
+                return a.row - b.row; // Sort by row first
+            }
+            return a.col - b.col; // Then by column
+        });
+        
+        // Assign sequential numbers
+        let number = 1;
+        for (const word of sortedWords) {
+            word.number = number++;
+        }
+        
+        console.log('Renumbered words sequentially:', sortedWords.map(w => `${w.number}: ${w.word}`));
     }
 
     /**
@@ -1175,12 +1202,6 @@ class CrosswordGenerator {
         if (bestPlacement) {
             // Assign a unique number based on placement order
             bestPlacement.number = this.placedWords.length + 1;
-            
-            // Ensure the number is unique across all placed words
-            const existingNumbers = this.placedWords.map(w => w.number);
-            while (existingNumbers.includes(bestPlacement.number)) {
-                bestPlacement.number++;
-            }
         }
         
         return bestPlacement;
@@ -1231,6 +1252,10 @@ class CrosswordGenerator {
      * @returns {Object|null} - Placement object or null if no space found
      */
     findEmptySpacePlacement(word) {
+        // Prefer placements near existing words for better connectivity
+        const preferredPositions = [];
+        const otherPositions = [];
+        
         // Try to find a row or column with enough empty space
         for (let row = 0; row < this.gridSize; row++) {
             for (let col = 0; col <= this.gridSize - word.length; col++) {
@@ -1244,12 +1269,19 @@ class CrosswordGenerator {
                 }
                 
                 if (canPlace) {
-                    return {
+                    const placement = {
                         word: word,
                         row: row,
                         col: col,
                         horizontal: true
                     };
+                    
+                    // Check if this placement is near existing words
+                    if (this.isNearExistingWords(placement)) {
+                        preferredPositions.push(placement);
+                    } else {
+                        otherPositions.push(placement);
+                    }
                 }
             }
         }
@@ -1267,17 +1299,49 @@ class CrosswordGenerator {
                 }
                 
                 if (canPlace) {
-                    return {
+                    const placement = {
                         word: word,
                         row: row,
                         col: col,
                         horizontal: false
                     };
+                    
+                    // Check if this placement is near existing words
+                    if (this.isNearExistingWords(placement)) {
+                        preferredPositions.push(placement);
+                    } else {
+                        otherPositions.push(placement);
+                    }
                 }
             }
         }
         
-        return null;
+        // Return preferred placement if available, otherwise any placement
+        if (preferredPositions.length > 0) {
+            return preferredPositions[0];
+        }
+        return otherPositions.length > 0 ? otherPositions[0] : null;
+    }
+
+    /**
+     * Checks if a word placement is near existing words for better connectivity.
+     * @param {Object} placement - Word placement to check
+     * @returns {boolean} - True if placement is near existing words
+     */
+    isNearExistingWords(placement) {
+        const { row, col, horizontal } = placement;
+        
+        // Check if any existing word is within 2 cells
+        for (const placedWord of this.placedWords) {
+            const rowDiff = Math.abs(row - placedWord.row);
+            const colDiff = Math.abs(col - placedWord.col);
+            
+            if (rowDiff <= 2 && colDiff <= 2) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     /**
@@ -1589,7 +1653,22 @@ class CrosswordRenderer {
 
     shouldShowNumber(row, col) {
         // Check if this cell should show a number (start of across or down word)
-        return this.isWordStart(row, col, 'across') || this.isWordStart(row, col, 'down');
+        const isAcrossStart = this.isWordStart(row, col, 'across');
+        const isDownStart = this.isWordStart(row, col, 'down');
+        
+        // Only show number if this is actually the start of a placed word
+        if (isAcrossStart || isDownStart) {
+            // Check if this position matches a placed word start
+            if (this.placedWords) {
+                for (const word of this.placedWords) {
+                    if (word.row === row && word.col === col) {
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        return false;
     }
 
     isWordStart(row, col, direction) {
