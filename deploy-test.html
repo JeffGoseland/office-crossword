@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deployment Test</title>
+    <style>
+        body { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 40px; 
+            color: white;
+            text-align: center;
+        }
+        .test-box { 
+            background: rgba(255,255,255,0.1); 
+            padding: 30px; 
+            border-radius: 15px; 
+            backdrop-filter: blur(10px);
+            margin: 20px auto;
+            max-width: 600px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .success { color: #4CAF50; font-weight: bold; }
+        .error { color: #f44336; font-weight: bold; }
+        button { 
+            background: #4CAF50; 
+            color: white; 
+            padding: 15px 30px; 
+            border: none; 
+            border-radius: 25px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            margin: 10px;
+        }
+        button:hover { background: #45a049; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Deployment Test</h1>
+    
+    <div class="test-box">
+        <h2>CSS Test</h2>
+        <p class="success">✅ If you see this styled box with gradient background, CSS is working!</p>
+        <p>This page uses inline CSS only - no external files needed.</p>
+    </div>
+    
+    <div class="test-box">
+        <h2>JavaScript Test</h2>
+        <p>Click the button below to test JavaScript:</p>
+        <button onclick="testJS()">Test JavaScript</button>
+        <div id="js-result"></div>
+    </div>
+    
+    <div class="test-box">
+        <h2>File Structure Test</h2>
+        <p>Checking if key files exist...</p>
+        <div id="file-check"></div>
+    </div>
+    
+    <script>
+        function testJS() {
+            document.getElementById('js-result').innerHTML = 
+                '<p class="success">✅ JavaScript is working!</p>';
+        }
+        
+        // Check if key files exist
+        window.addEventListener('load', function() {
+            const files = [
+                './css/styles.css',
+                './scripts/crossword.js',
+                './img/stan.png',
+                './data/cross-word-1.csv'
+            ];
+            
+            const results = [];
+            files.forEach(file => {
+                fetch(file, {method: 'HEAD'})
+                    .then(response => {
+                        if (response.ok) {
+                            results.push(`✅ ${file} - Found`);
+                        } else {
+                            results.push(`❌ ${file} - Not Found (${response.status})`);
+                        }
+                    })
+                    .catch(error => {
+                        results.push(`❌ ${file} - Error: ${error.message}`);
+                    })
+                    .finally(() => {
+                        if (results.length === files.length) {
+                            document.getElementById('file-check').innerHTML = 
+                                results.map(r => `<p>${r}</p>`).join('');
+                        }
+                    });
+            });
+        });
+    </script>
+</body>
+</html>
