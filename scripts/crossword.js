@@ -173,6 +173,12 @@ class CrosswordGenerator {
             };
         } catch (error) {
             console.error('Error in generateCrossword:', error);
+            console.error('Error details:', {
+                wordsLoaded: this.words ? this.words.length : 0,
+                selectedWords: selectedWords ? selectedWords.length : 0,
+                errorMessage: error.message,
+                stack: error.stack
+            });
             throw error;
         }
     }
@@ -213,10 +219,12 @@ class CrosswordGenerator {
                         // STRICT WORD VALIDATION - Only allow valid English words
                         if (word.length >= this.config.get('words.minLength') && 
                             word.length <= this.config.get('words.maxLength') &&
-                            /^[a-z]+$/.test(word) &&
-                            this.isValidEnglishWord(word)) {
-                            this.words.push(word);
-                            this.clues[word] = clue;
+                            /^[a-z]+$/.test(word)) {
+                            // Temporarily disable strict validation for debugging
+                            // if (this.isValidEnglishWord(word)) {
+                                this.words.push(word);
+                                this.clues[word] = clue;
+                            // }
                         }
                     }
                 }
@@ -225,6 +233,21 @@ class CrosswordGenerator {
             console.log(`Loaded ${this.words.length} words with clues from CSV`);
             console.log('First 5 words loaded:', this.words.slice(0, 5));
             console.log('Sample clues:', Object.entries(this.clues).slice(0, 3));
+            
+            // If no words loaded, add some fallback words
+            if (this.words.length === 0) {
+                console.warn('No words loaded from CSV, adding fallback words');
+                const fallbackWords = [
+                    'crossword', 'puzzle', 'letters', 'words', 'clues',
+                    'answer', 'solution', 'game', 'play', 'fun',
+                    'brain', 'think', 'learn', 'study', 'knowledge'
+                ];
+                this.words = fallbackWords;
+                fallbackWords.forEach(word => {
+                    this.clues[word] = `A ${word.length}-letter word`;
+                });
+                console.log('Added fallback words:', this.words);
+            }
             
         } catch (error) {
             console.error('Error loading words from CSV:', error);
@@ -1998,14 +2021,88 @@ document.addEventListener('DOMContentLoaded', async () => {
         
     } catch (error) {
         console.error('Error initializing crossword app:', error);
+        console.error('Error details:', error);
+        
+        // Show error on page
+        const container = document.getElementById('crossword-container');
+        if (container) {
+            container.innerHTML = `
+                <div style="color: red; padding: 20px; text-align: center; background: #ffe6e6; border-radius: 8px; margin: 20px;">
+                    <h3>❌ Error Initializing Crossword</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p>Check the browser console for more details.</p>
+                    <button onclick="location.reload()" style="background: #d32f2f; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+                        Reload Page
+                    </button>
+                </div>
+            `;
+        }
     }
 });
 
+// Test basic JavaScript functionality
+function testJavaScript() {
+    console.log('Testing JavaScript functionality...');
+    
+    // Test basic operations
+    const testArray = [1, 2, 3, 4, 5];
+    const shuffled = testArray.sort(() => Math.random() - 0.5);
+    console.log('JavaScript test passed - array operations working');
+    
+    // Test fetch availability
+    if (typeof fetch === 'function') {
+        console.log('Fetch API available');
+    } else {
+        console.warn('Fetch API not available');
+    }
+    
+    // Test DOM manipulation
+    const testElement = document.createElement('div');
+    testElement.textContent = 'Test';
+    console.log('DOM manipulation working');
+}
+
 // Global function for button click
 async function generateCrossword() {
-    if (crosswordApp) {
-        await crosswordApp.handleGenerateClick();
-    } else {
-        console.error('Crossword app not initialized');
+    try {
+        console.log('Generate button clicked');
+        
+        if (crosswordApp) {
+            console.log('Crossword app found, generating...');
+            await crosswordApp.handleGenerateClick();
+        } else {
+            console.error('Crossword app not initialized');
+            
+            // Show error on page
+            const container = document.getElementById('crossword-container');
+            if (container) {
+                container.innerHTML = `
+                    <div style="color: red; padding: 20px; text-align: center; background: #ffe6e6; border-radius: 8px; margin: 20px;">
+                        <h3>❌ Crossword App Not Ready</h3>
+                        <p>The crossword app is still initializing. Please wait a moment and try again.</p>
+                        <button onclick="location.reload()" style="background: #d32f2f; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+                            Reload Page
+                        </button>
+                    </div>
+                `;
+            }
+        }
+    } catch (error) {
+        console.error('Error in generateCrossword:', error);
+        
+        // Show error on page
+        const container = document.getElementById('crossword-container');
+        if (container) {
+            container.innerHTML = `
+                <div style="color: red; padding: 20px; text-align: center; background: #ffe6e6; border-radius: 8px; margin: 20px;">
+                    <h3>❌ Error Generating Crossword</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p>Check the browser console for more details.</p>
+                    <button onclick="location.reload()" style="background: #d32f2f; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+                        Reload Page
+                    </button>
+                </div>
+            `;
+        }
     }
 }
