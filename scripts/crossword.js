@@ -213,8 +213,11 @@ class CrosswordGenerator {
                 if (line) {
                     const parts = line.split(',');
                     if (parts.length >= 2) {
+                        // CSV format is: clue,word (not word,clue)
                         const clue = parts[0].replace(/"/g, '').trim();
                         const word = parts[1].trim().toLowerCase();
+                        
+                        console.log(`Processing: clue="${clue}", word="${word}"`);
                         
                         // STRICT WORD VALIDATION - Only allow valid English words
                         if (word.length >= this.config.get('words.minLength') && 
@@ -224,7 +227,10 @@ class CrosswordGenerator {
                             // if (this.isValidEnglishWord(word)) {
                                 this.words.push(word);
                                 this.clues[word] = clue;
+                                console.log(`Added word: "${word}" with clue: "${clue}"`);
                             // }
+                        } else {
+                            console.log(`Rejected word: "${word}" - length: ${word.length}, valid: ${/^[a-z]+$/.test(word)}`);
                         }
                     }
                 }

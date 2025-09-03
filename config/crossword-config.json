@@ -9,7 +9,7 @@
         "avoid2x2Blocks": true
     },
     "words": {
-        "minLength": 4,
+        "minLength": 3,
         "maxLength": 12,
         "targetCount": 15,
         "preferLonger": true,
