@@ -18,7 +18,7 @@ class CrosswordConfig {
             placement: { maxAttempts: 200, ensureConnectivity: true, preventIsolatedLetters: true, density: 'medium' },
             rendering: { cellSize: 45, showNumbers: true, showClues: true, showGridLabels: true },
             difficulty: 'medium',
-            files: { wordListPath: 'data/sample.csv', fallbackWords: [] }
+            files: { wordListPath: './data/sample.csv', fallbackWords: [] }
         };
         this.config = { ...this.defaultConfig };
     }
