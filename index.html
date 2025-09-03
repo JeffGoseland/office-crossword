@@ -35,6 +35,65 @@
         });
     </script>
     
+    <!-- Fallback Inline CSS for Critical Styles -->
+    <style>
+        /* Critical fallback styles if external CSS fails */
+        body { 
+            background-color: #fafafa; 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+        }
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        }
+        h1 { 
+            text-align: center; 
+            color: #1976d2; 
+            margin-bottom: 30px; 
+        }
+        .generate-btn { 
+            display: block; 
+            margin: 20px auto; 
+            padding: 15px 30px; 
+            background: #1976d2; 
+            color: white; 
+            border: none; 
+            border-radius: 25px; 
+            font-size: 16px; 
+            cursor: pointer; 
+        }
+        .crossword { 
+            display: grid; 
+            gap: 1px; 
+            margin: 20px auto; 
+            justify-content: center; 
+        }
+        .cell { 
+            width: 45px; 
+            height: 45px; 
+            border: 1px solid #ccc; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            background: white; 
+            position: relative; 
+        }
+        .cell.black { background: #333; }
+        .number { 
+            position: absolute; 
+            top: 2px; 
+            left: 2px; 
+            font-size: 10px; 
+            color: #666; 
+        }
+    </style>
+    
     <!-- Consolidated JavaScript -->
     <script src="./scripts/crossword.js"></script>
 </head>

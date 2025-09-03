@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS Test</title>
+    
+    <!-- Test CSS loading -->
+    <link rel="stylesheet" href="./css/styles.css" id="main-css">
+    
+    <script>
+        // Test CSS loading
+        window.addEventListener('load', function() {
+            const cssLink = document.getElementById('main-css');
+            console.log('CSS link element:', cssLink);
+            console.log('CSS href:', cssLink?.href);
+            console.log('CSS sheet loaded:', cssLink?.sheet ? 'YES' : 'NO');
+            
+            if (cssLink && !cssLink.sheet) {
+                console.error('CSS failed to load!');
+                document.body.innerHTML += '<h2 style="color: red;">CSS FAILED TO LOAD!</h2>';
+            } else {
+                console.log('CSS loaded successfully!');
+                document.body.innerHTML += '<h2 style="color: green;">CSS LOADED SUCCESSFULLY!</h2>';
+            }
+        });
+    </script>
+</head>
+<body>
+    <h1>CSS Loading Test</h1>
+    <p>Check the console for CSS loading status.</p>
+    
+    <div style="background: #f0f0f0; padding: 20px; margin: 20px; border-radius: 8px;">
+        <h3>Test Elements (should be styled if CSS loads):</h3>
+        <button style="background: #1976d2; color: white; padding: 10px 20px; border: none; border-radius: 5px;">
+            Test Button
+        </button>
+        <div style="margin-top: 20px; padding: 15px; background: white; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+            <p>This box should have a shadow if CSS variables are working.</p>
+        </div>
+    </div>
+</body>
+</html>
